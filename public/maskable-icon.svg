@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mortgage Payment Planner">
+  <rect width="512" height="512" fill="#164e63" />
+  <circle cx="256" cy="256" r="188" fill="#0f766e" />
+  <path d="M140 256 256 160l116 96v116c0 18-14 32-32 32H172c-18 0-32-14-32-32V256Z" fill="#f4efe6" />
+  <path d="M224 404V288h64v116" fill="#f59e0b" />
+  <path d="M214 224h84" stroke="#0f172a" stroke-width="18" stroke-linecap="round" />
+  <path d="M230 334h52M230 368h52" stroke="#0f172a" stroke-width="12" stroke-linecap="round" />
+</svg>

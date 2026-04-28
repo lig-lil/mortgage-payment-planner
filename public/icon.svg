@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mortgage Payment Planner">
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#164e63" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="136" fill="url(#bg)" />
+  <circle cx="392" cy="128" r="52" fill="#f59e0b" opacity="0.85" />
+  <path d="M88 248 256 106l168 142v136c0 24-20 44-44 44H132c-24 0-44-20-44-44V248Z" fill="#f4efe6" />
+  <path d="M202 428V274h108v154" fill="#f59e0b" />
+  <path d="M196 206h120" stroke="#0f172a" stroke-width="24" stroke-linecap="round" />
+  <path d="M224 330h64M224 374h64" stroke="#0f172a" stroke-width="16" stroke-linecap="round" />
+</svg>
