@@ -484,8 +484,8 @@ button {
 
 .sticky-actions {
   display: grid;
-  gap: 0.9rem;
-  padding: 1rem;
+  gap: 0.7rem;
+  padding: 0.85rem;
   border-radius: 24px;
   background: rgba(255, 253, 248, 0.92);
   border: 1px solid rgba(16, 42, 67, 0.08);
@@ -500,13 +500,17 @@ button {
 }
 
 .sticky-actions__buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
 }
 
 .sticky-actions__buttons button {
-  flex: 1 1 9rem;
+  min-height: 38px;
+  padding: 0.55rem 0.45rem;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  line-height: 1.15;
 }
 
 @media (max-width: 390px) {

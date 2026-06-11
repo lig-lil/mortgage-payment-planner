@@ -23,13 +23,14 @@ import {
   calculateInterestSavings,
   calculateMonthlyReimbursementPlanning
 } from '../utils/calculations';
-import { parseFlexibleNumber, parsePositiveInteger } from '../utils/number';
+import { formatEditableMoney, parseFlexibleNumber, parsePositiveInteger } from '../utils/number';
 import {
   createScheduleRow,
   createRowId,
   findDuplicateInstallments,
   isPrincipalRow,
   principalRows,
+  rowsSummary,
   sortRows
 } from '../utils/rows';
 
@@ -141,9 +142,114 @@ const applyStoredInterestSavings = (
   }
 };
 
-const downloadJson = (payload: object, filename: string) => {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: 'application/json'
+const escapeCsvCell = (value: string | number | null | undefined): string => {
+  const text = value == null ? '' : String(value);
+
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+const buildScheduleCsv = (rows: ScheduleRow[]): string => {
+  const headers = [
+    'installment_number',
+    'credit_amount',
+    'interest_amount',
+    'payment_date',
+    'source_page',
+    'source_row_index'
+  ];
+  const csvRows = sortRows(rows).map((row) =>
+    [
+      row.installmentNumber,
+      formatEditableMoney(row.creditAmount),
+      row.interestAmount == null ? '' : formatEditableMoney(row.interestAmount),
+      row.paymentDate ?? '',
+      row.sourcePage ?? '',
+      row.sourceRowIndex ?? ''
+    ]
+      .map(escapeCsvCell)
+      .join(',')
+  );
+
+  return [headers.join(','), ...csvRows].join('\r\n');
+};
+
+const buildResultsSnapshotCsv = (params: {
+  rows: ScheduleRow[];
+  interestDraft: string;
+  planningDraft: string;
+  latestResult: StoredCalculationResult | undefined;
+  planningResult: PlanningCalculationResult | null;
+}): string => {
+  const summary = rowsSummary(params.rows);
+  const rows: Array<[string, string, string | number | null | undefined]> = [
+    ['Local Summary', 'Total rows', summary.totalRows],
+    ['Local Summary', 'Total installments', summary.totalInstallments],
+    ['Local Summary', 'Total principal', formatEditableMoney(summary.totalCredit)],
+    ['Inputs', 'New interest amount', params.interestDraft],
+    ['Inputs', 'Monthly reimbursement', params.planningDraft]
+  ];
+
+  const latest = params.latestResult;
+
+  if (latest) {
+    const resultInputLabel =
+      latest.result.type === 'amount' ? 'Reimbursed amount' : 'Reimbursed months';
+
+    rows.push(
+      ['Results', 'Calculation type', latest.result.type],
+      ['Results', resultInputLabel, latest.inputValue],
+      ['Results', 'First unpaid installment', latest.result.firstUnpaidInstallment],
+      ['Results', 'Covered installments', latest.result.installmentNumbersCovered.length],
+      ['Results', 'Remaining principal', formatEditableMoney(latest.result.remainingCredit)],
+      ['Results', 'Remaining installments', latest.result.remainingMonths],
+      ['Results', 'Remaining years', latest.result.remainingYearsLabel],
+      ['Results', 'Last payment date', latest.result.lastPaymentDateLabel],
+      [
+        'Results',
+        'Total interest saved',
+        latest.result.totalInterestSaved == null
+          ? ''
+          : formatEditableMoney(latest.result.totalInterestSaved)
+      ]
+    );
+
+    if (latest.result.type === 'amount') {
+      rows.push(
+        ['Results', 'Principal covered', formatEditableMoney(latest.result.totalCreditCovered)],
+        ['Results', 'Unused amount', formatEditableMoney(latest.result.unusedAmount)]
+      );
+    } else {
+      rows.push(
+        ['Results', 'Months selected', latest.result.monthsRequested],
+        ['Results', 'Required amount', formatEditableMoney(latest.result.totalAmountRequired)]
+      );
+    }
+  }
+
+  rows.push(
+    ['Planning', 'Monthly reimbursement', params.planningDraft],
+    ['Planning', 'Estimated remaining months', params.planningResult?.estimatedRemainingMonths ?? ''],
+    [
+      'Planning',
+      'Estimated remaining years',
+      params.planningResult?.estimatedRemainingYearsLabel ?? ''
+    ],
+    [
+      'Planning',
+      'Estimated last payment date',
+      params.planningResult?.estimatedLastPaymentDateLabel ?? ''
+    ]
+  );
+
+  return [
+    ['section', 'field', 'value'].join(','),
+    ...rows.map((row) => row.map(escapeCsvCell).join(','))
+  ].join('\r\n');
+};
+
+const downloadCsv = (csv: string, filename: string) => {
+  const blob = new Blob([`\uFEFF${csv}`], {
+    type: 'text/csv;charset=utf-8'
   });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -435,16 +541,20 @@ export const HomePage = () => {
     }
   };
 
-  const handleExportJson = () => {
-    downloadJson(
-      {
-        rows,
-        firstUnpaidRowId,
-        warnings,
-        meta,
-        recentResults: recalculatedResults
-      },
-      'mortgage-schedule.json'
+  const handleExportScheduleCsv = () => {
+    downloadCsv(buildScheduleCsv(rows), 'mortgage-schedule.csv');
+  };
+
+  const handleExportResultsCsv = () => {
+    downloadCsv(
+      buildResultsSnapshotCsv({
+        rows: sortedRows,
+        interestDraft,
+        planningDraft,
+        latestResult: recalculatedResults[0],
+        planningResult
+      }),
+      'mortgage-results.csv'
     );
   };
 
@@ -552,7 +662,8 @@ export const HomePage = () => {
       <HistoryCard title={uiText.historyTitle} results={recalculatedResults} />
 
       <StickyActions
-        onExportJson={handleExportJson}
+        onExportScheduleCsv={handleExportScheduleCsv}
+        onExportResultsCsv={handleExportResultsCsv}
         onClearData={handleClearData}
         note={uiText.stickyNote}
       />
