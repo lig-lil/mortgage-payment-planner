@@ -22,8 +22,12 @@ export const SummaryCard = ({
     <SectionCard title={title}>
       <div className="summary-grid">
         <div className="summary-stat">
-          <span>Total installments</span>
+          <span>Total rows</span>
           <strong>{summary.totalRows}</strong>
+        </div>
+        <div className="summary-stat">
+          <span>Total installments</span>
+          <strong>{summary.totalInstallments}</strong>
         </div>
         <div className="summary-stat">
           <span>Total principal</span>

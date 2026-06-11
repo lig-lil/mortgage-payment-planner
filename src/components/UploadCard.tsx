@@ -47,12 +47,6 @@ export const UploadCard = ({
             onChange={handlePdfChange}
           />
         </div>
-
-        <div className="upload-card__secondary-actions">
-          <p className="hint-text">
-            Everything runs locally in the browser. Your PDF never leaves your device.
-          </p>
-        </div>
       </div>
     </SectionCard>
   );

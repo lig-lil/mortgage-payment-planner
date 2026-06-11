@@ -1,12 +1,12 @@
 import { ScheduleRow } from '../types';
-import { sortRows } from '../utils/rows';
+import { principalRows } from '../utils/rows';
 import { SectionCard } from './SectionCard';
 
 interface FirstUnpaidSelectorProps {
   title: string;
   rows: ScheduleRow[];
-  value: number | null;
-  onChange: (value: number) => void;
+  value: string | null;
+  onChange: (value: string) => void;
 }
 
 export const FirstUnpaidSelector = ({
@@ -15,7 +15,7 @@ export const FirstUnpaidSelector = ({
   value,
   onChange
 }: FirstUnpaidSelectorProps) => {
-  const sortedRows = sortRows(rows);
+  const sortedRows = principalRows(rows).slice(1);
 
   return (
     <SectionCard
@@ -26,12 +26,12 @@ export const FirstUnpaidSelector = ({
         <span>Starting installment</span>
         <select
           value={value ?? ''}
-          onChange={(event) => onChange(Number(event.target.value))}
+          onChange={(event) => onChange(event.target.value)}
           disabled={!sortedRows.length}
         >
           {!sortedRows.length ? <option value="">No installments available</option> : null}
           {sortedRows.map((row) => (
-            <option key={row.id} value={row.installmentNumber}>
+            <option key={row.id} value={row.id}>
               Installment {row.installmentNumber}
             </option>
           ))}

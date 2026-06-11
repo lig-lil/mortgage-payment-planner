@@ -26,6 +26,19 @@ export const creditAliases = [
   'capital'
 ];
 
+export const interestAliases = [
+  'dob',
+  'dobanda',
+  'dobanzi',
+  'dobanda totala',
+  'dobanzi totale',
+  'total dobanda',
+  'total dobanzi',
+  'interest',
+  'interest amount',
+  'total interest'
+];
+
 const scoreAlias = (text: string, alias: string): number => {
   if (!text) {
     return 0;

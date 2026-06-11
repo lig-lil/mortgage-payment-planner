@@ -38,11 +38,13 @@ html,
 body,
 #root {
   min-height: 100%;
+  max-width: 100%;
 }
 
 body {
   margin: 0;
   min-width: 320px;
+  overflow-x: hidden;
 }
 
 button,
@@ -59,16 +61,19 @@ button {
 .app-shell {
   width: min(100%, 1080px);
   margin: 0 auto;
-  padding: max(1rem, env(safe-area-inset-top)) 1rem calc(7rem + env(safe-area-inset-bottom));
+  padding: max(1rem, env(safe-area-inset-top)) clamp(0.7rem, 4vw, 1rem)
+    calc(1rem + env(safe-area-inset-bottom));
   display: grid;
   gap: 1rem;
+  overflow: hidden;
 }
 
 .hero {
   position: relative;
   overflow: hidden;
-  padding: 1.5rem;
-  border-radius: 30px;
+  min-width: 0;
+  padding: clamp(1rem, 5vw, 1.5rem);
+  border-radius: clamp(22px, 8vw, 30px);
   color: white;
   background:
     radial-gradient(circle at top right, rgba(245, 158, 11, 0.62), transparent 12rem),
@@ -87,18 +92,19 @@ button {
 }
 
 .hero h1 {
-  margin: 0.65rem 0 0.5rem;
-  font-size: clamp(2rem, 6vw, 3.3rem);
-  line-height: 1.05;
+  margin: 0 0 0.5rem;
+  font-size: clamp(2rem, 11vw, 3.3rem);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
 }
 
 .hero p {
   margin: 0;
   max-width: 38rem;
   color: rgba(255, 255, 255, 0.9);
+  overflow-wrap: anywhere;
 }
 
-.hero__badge,
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -113,6 +119,7 @@ button {
 }
 
 .section-card {
+  min-width: 0;
   background: var(--card);
   border: 1px solid rgba(255, 255, 255, 0.45);
   border-radius: var(--radius);
@@ -126,16 +133,19 @@ button {
   flex-direction: column;
   gap: 0.85rem;
   margin-bottom: 1rem;
+  min-width: 0;
 }
 
 .section-card__header h2 {
   margin: 0;
   font-size: 1.2rem;
+  overflow-wrap: anywhere;
 }
 
 .section-card__header p {
   margin: 0.4rem 0 0;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .section-card__actions,
@@ -156,6 +166,12 @@ button {
   border-radius: 20px;
   border: 1px dashed rgba(22, 78, 99, 0.28);
   background: rgba(255, 255, 255, 0.42);
+  min-width: 0;
+}
+
+.upload-card__dropzone p {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .primary-button,
@@ -165,6 +181,9 @@ button {
   padding: 0.8rem 1rem;
   border-radius: 16px;
   font-weight: 700;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
   transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
 }
 
@@ -226,12 +245,13 @@ button {
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem;
+  gap: 0.55rem;
 }
 
 .summary-stat {
-  padding: 0.9rem;
-  border-radius: 18px;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.55);
   border: 1px solid rgba(16, 42, 67, 0.06);
 }
@@ -239,19 +259,22 @@ button {
 .summary-stat span {
   display: block;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .summary-stat strong {
   display: block;
-  margin-top: 0.25rem;
-  font-size: 1.15rem;
+  margin-top: 0.15rem;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
 }
 
 .meta-strip {
   margin-top: 1rem;
   display: grid;
   gap: 0.4rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .field {
@@ -283,7 +306,8 @@ button {
 }
 
 .table-wrapper {
-  overflow-x: auto;
+  max-height: 13rem;
+  overflow: auto;
   border-radius: 18px;
   border: 1px solid var(--line);
 }
@@ -305,6 +329,10 @@ button {
 }
 
 .schedule-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card-strong);
   font-size: 0.9rem;
   color: var(--muted);
 }
@@ -410,6 +438,34 @@ button {
   margin: 0.35rem 0;
 }
 
+.planning-panel {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.85rem 1rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(16, 42, 67, 0.08);
+}
+
+.planning-panel h3 {
+  margin: 0;
+}
+
+.planning-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.planning-form .primary-button {
+  min-height: 42px;
+  padding: 0.65rem 0.95rem;
+  border-radius: 14px;
+}
+
+.planning-results p {
+  margin: 0.35rem 0;
+}
+
 .history-item {
   display: flex;
   align-items: center;
@@ -418,6 +474,7 @@ button {
   padding: 0.85rem 1rem;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.48);
+  min-width: 0;
 }
 
 .history-item strong,
@@ -426,8 +483,6 @@ button {
 }
 
 .sticky-actions {
-  position: sticky;
-  bottom: 0.75rem;
   display: grid;
   gap: 0.9rem;
   padding: 1rem;
@@ -436,6 +491,7 @@ button {
   border: 1px solid rgba(16, 42, 67, 0.08);
   box-shadow: 0 22px 44px rgba(16, 42, 67, 0.14);
   backdrop-filter: blur(16px);
+  min-width: 0;
 }
 
 .sticky-actions p {
@@ -449,9 +505,23 @@ button {
   gap: 0.75rem;
 }
 
+.sticky-actions__buttons button {
+  flex: 1 1 9rem;
+}
+
+@media (max-width: 390px) {
+  .section-card {
+    padding: 0.85rem;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (min-width: 720px) {
   .app-shell {
-    padding: 1.5rem 1.5rem 8rem;
+    padding: 1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
   }
 
   .section-card {
@@ -470,6 +540,11 @@ button {
 
   .meta-strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .planning-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
   }
 
   .sticky-actions {

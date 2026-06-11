@@ -10,6 +10,8 @@ export interface ScheduleRow {
   id: string;
   installmentNumber: number;
   creditAmount: number;
+  interestAmount?: number;
+  paymentDate?: string;
   rawRowData?: Record<string, string>;
   sourcePage?: number;
   sourceRowIndex?: number;
@@ -25,6 +27,8 @@ export interface ExtractionMeta {
   parsedPages: number;
   installmentColumn: ColumnDetection;
   creditColumn: ColumnDetection;
+  interestColumn?: ColumnDetection;
+  lastInterestAmount?: number;
   extractedAt: string;
 }
 
@@ -36,28 +40,45 @@ export interface PdfParseResult {
 
 export interface AmountCalculationResult {
   type: 'amount';
+  firstUnpaidRowId: string;
   firstUnpaidInstallment: number;
   monthsCovered: number;
   totalCreditCovered: number;
   remainingCredit: number;
   unusedAmount: number;
   remainingMonths: number;
+  remainingYearsLabel: string;
+  lastPaymentDateLabel: string;
+  totalInterestSaved?: number;
+  newInterestAmount?: number;
   installmentNumbersCovered: number[];
   totalScheduleMonths: number;
 }
 
 export interface MonthsCalculationResult {
   type: 'months';
+  firstUnpaidRowId: string;
   firstUnpaidInstallment: number;
   monthsRequested: number;
   totalAmountRequired: number;
   remainingCredit: number;
   remainingMonths: number;
+  remainingYearsLabel: string;
+  lastPaymentDateLabel: string;
+  totalInterestSaved?: number;
+  newInterestAmount?: number;
   installmentNumbersCovered: number[];
   totalScheduleMonths: number;
 }
 
 export type CalculationResult = AmountCalculationResult | MonthsCalculationResult;
+
+export interface PlanningCalculationResult {
+  monthlyReimbursement: number;
+  estimatedRemainingMonths: number;
+  estimatedRemainingYearsLabel: string;
+  estimatedLastPaymentDateLabel: string;
+}
 
 export interface StoredCalculationResult {
   id: string;
@@ -68,7 +89,8 @@ export interface StoredCalculationResult {
 
 export interface AppStateSnapshot {
   rows: ScheduleRow[];
-  firstUnpaidInstallment: number | null;
+  firstUnpaidRowId: string | null;
+  firstUnpaidInstallment?: number | null;
   warnings: AppWarning[];
   meta: ExtractionMeta | null;
   recentResults: StoredCalculationResult[];

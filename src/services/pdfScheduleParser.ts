@@ -13,6 +13,7 @@ import {
 import {
   creditAliases,
   detectHeaderCandidate,
+  interestAliases,
   installmentAliases
 } from '../utils/headerDetection';
 import { parseFlexibleNumber } from '../utils/number';
@@ -22,6 +23,7 @@ import {
   findDuplicateInstallments,
   sortRows
 } from '../utils/rows';
+import { parseScheduleDateFromText } from '../utils/scheduleDate';
 
 GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -53,8 +55,10 @@ interface PdfTextLine {
 interface ActiveColumns {
   installmentX: number | null;
   creditX: number | null;
+  interestX: number | null;
   installmentColumn: ColumnDetection;
   creditColumn: ColumnDetection;
+  interestColumn: ColumnDetection;
 }
 
 const MAX_REASONABLE_INSTALLMENT_NUMBER = 600;
@@ -231,6 +235,17 @@ const pickClosestNumericSegment = (
   return candidates[0] ? { value: candidates[0].value, segment: candidates[0].segment } : null;
 };
 
+const pickOptionalNumericSegment = (
+  segments: LineSegment[],
+  x: number | null
+): { value: number; segment: LineSegment } | null => {
+  if (x == null) {
+    return null;
+  }
+
+  return pickClosestNumericSegment(segments, x, parseFlexibleNumber);
+};
+
 const detectColumnsFromSegments = (segments: LineSegment[]): ActiveColumns | null => {
   const headerSegments = buildSegments(
     segments.map((segment) => ({
@@ -248,6 +263,11 @@ const detectColumnsFromSegments = (segments: LineSegment[]): ActiveColumns | nul
     label?: string;
   } = { x: null, confidence: 0 };
   let creditMatch: {
+    x: number | null;
+    confidence: number;
+    label?: string;
+  } = { x: null, confidence: 0 };
+  let interestMatch: {
     x: number | null;
     confidence: number;
     label?: string;
@@ -282,15 +302,30 @@ const detectColumnsFromSegments = (segments: LineSegment[]): ActiveColumns | nul
         label: creditCandidate.label
       };
     }
+
+    const interestCandidate = detectHeaderCandidate(segment.text, interestAliases);
+    if (interestCandidate && interestCandidate.confidence > interestMatch.confidence) {
+      interestMatch = {
+        x: segment.x + segment.width / 2,
+        confidence: interestCandidate.confidence,
+        label: interestCandidate.label
+      };
+    }
+
   });
 
-  if (installmentMatch.confidence <= 0.4 && creditMatch.confidence <= 0.4) {
+  if (
+    installmentMatch.confidence <= 0.4 &&
+    creditMatch.confidence <= 0.4 &&
+    interestMatch.confidence <= 0.4
+  ) {
     return null;
   }
 
   return {
     installmentX: installmentMatch.x,
     creditX: creditMatch.x,
+    interestX: interestMatch.x,
     installmentColumn: {
       confidence: installmentMatch.confidence,
       label: installmentMatch.label
@@ -298,7 +333,36 @@ const detectColumnsFromSegments = (segments: LineSegment[]): ActiveColumns | nul
     creditColumn: {
       confidence: creditMatch.confidence,
       label: creditMatch.label
+    },
+    interestColumn: {
+      confidence: interestMatch.confidence,
+      label: interestMatch.label
     }
+  };
+};
+
+const pickBetterColumn = (
+  current: ColumnDetection,
+  next: ColumnDetection
+): ColumnDetection => (next.confidence > current.confidence ? next : current);
+
+const mergeActiveColumns = (current: ActiveColumns | null, next: ActiveColumns): ActiveColumns => {
+  if (!current) {
+    return next;
+  }
+
+  const installmentColumn = pickBetterColumn(current.installmentColumn, next.installmentColumn);
+  const creditColumn = pickBetterColumn(current.creditColumn, next.creditColumn);
+  const interestColumn = pickBetterColumn(current.interestColumn, next.interestColumn);
+
+  return {
+    installmentX:
+      installmentColumn === next.installmentColumn ? next.installmentX : current.installmentX,
+    creditX: creditColumn === next.creditColumn ? next.creditX : current.creditX,
+    interestX: interestColumn === next.interestColumn ? next.interestX : current.interestX,
+    installmentColumn,
+    creditColumn,
+    interestColumn
   };
 };
 
@@ -308,7 +372,6 @@ const looksLikeRowNoise = (text: string): boolean => {
     normalized.includes('total') ||
     normalized.includes('dobanda') ||
     normalized.includes('interest') ||
-    normalized.includes('comision') ||
     normalized.includes('sold') ||
     normalized.includes('balance')
   );
@@ -339,7 +402,11 @@ const fallbackRowParse = (line: PdfTextLine): ScheduleRow | null => {
     id: createRowId(),
     installmentNumber: installmentCandidate,
     creditAmount: creditCandidate,
-    rawRowData: { lineText: line.text },
+    paymentDate: parseScheduleDateFromText(line.text) ?? undefined,
+    rawRowData: {
+      lineText: line.text,
+      segmentText: line.segments.map((segment) => segment.text).join(' | ')
+    },
     sourcePage: line.pageNumber,
     sourceRowIndex: line.lineIndex
   });
@@ -363,6 +430,7 @@ const parseRowWithColumns = (
     activeColumns.creditX,
     parseFlexibleNumber
   );
+  const interestSegment = pickOptionalNumericSegment(line.segments, activeColumns.interestX);
 
   if (!installmentSegment || !creditSegment) {
     return fallbackRowParse(line);
@@ -372,10 +440,14 @@ const parseRowWithColumns = (
     id: createRowId(),
     installmentNumber: installmentSegment.value,
     creditAmount: creditSegment.value,
+    interestAmount: interestSegment?.value,
+    paymentDate: parseScheduleDateFromText(line.text) ?? undefined,
     rawRowData: {
       lineText: line.text,
+      segmentText: line.segments.map((segment) => segment.text).join(' | '),
       installmentCell: installmentSegment.segment.text,
-      creditCell: creditSegment.segment.text
+      creditCell: creditSegment.segment.text,
+      interestCell: interestSegment?.segment.text ?? ''
     },
     sourcePage: line.pageNumber,
     sourceRowIndex: line.lineIndex
@@ -442,23 +514,37 @@ export const parseSchedulePdf = async (file: File): Promise<PdfParseResult> => {
   let activeColumns: ActiveColumns | null = null;
   let bestInstallmentColumn: ColumnDetection = { confidence: 0 };
   let bestCreditColumn: ColumnDetection = { confidence: 0 };
+  let bestInterestColumn: ColumnDetection = { confidence: 0 };
+  let lastInterestAmount: number | undefined;
   const extractedRows: ScheduleRow[] = [];
 
   allLines.forEach((line) => {
     const detectedColumns = detectColumnsFromSegments(line.segments);
 
     if (detectedColumns) {
-      activeColumns = detectedColumns;
+      activeColumns = mergeActiveColumns(activeColumns, detectedColumns);
 
-      if (detectedColumns.installmentColumn.confidence > bestInstallmentColumn.confidence) {
-        bestInstallmentColumn = detectedColumns.installmentColumn;
+      if (activeColumns.installmentColumn.confidence > bestInstallmentColumn.confidence) {
+        bestInstallmentColumn = activeColumns.installmentColumn;
       }
 
-      if (detectedColumns.creditColumn.confidence > bestCreditColumn.confidence) {
-        bestCreditColumn = detectedColumns.creditColumn;
+      if (activeColumns.creditColumn.confidence > bestCreditColumn.confidence) {
+        bestCreditColumn = activeColumns.creditColumn;
+      }
+
+      if (activeColumns.interestColumn.confidence > bestInterestColumn.confidence) {
+        bestInterestColumn = activeColumns.interestColumn;
       }
 
       return;
+    }
+
+    const interestValue = activeColumns
+      ? pickOptionalNumericSegment(line.segments, activeColumns.interestX)?.value
+      : undefined;
+
+    if (interestValue != null) {
+      lastInterestAmount = interestValue;
     }
 
     const parsedRow = activeColumns
@@ -514,6 +600,8 @@ export const parseSchedulePdf = async (file: File): Promise<PdfParseResult> => {
     parsedPages: pdf.numPages,
     installmentColumn: bestInstallmentColumn,
     creditColumn: bestCreditColumn,
+    interestColumn: bestInterestColumn,
+    lastInterestAmount,
     extractedAt: new Date().toISOString()
   };
 
