@@ -93,7 +93,7 @@ button {
 
 .hero h1 {
   margin: 0 0 0.5rem;
-  font-size: clamp(1.75rem, 8vw, 3.3rem);
+  font-size: clamp(1.25rem, 5.5vw, 2.15rem);
   line-height: 1.08;
   overflow-wrap: anywhere;
 }
@@ -103,6 +103,53 @@ button {
   max-width: 38rem;
   color: rgba(255, 255, 255, 0.9);
   overflow-wrap: anywhere;
+}
+
+.view-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.view-tabs__button {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 3.25rem;
+  padding: 0.62rem 0.78rem;
+  border-radius: 16px;
+  border: 1px solid rgba(16, 42, 67, 0.08);
+  background: rgba(255, 253, 248, 0.72);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: 0 12px 26px rgba(16, 42, 67, 0.08);
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.view-tabs__button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(15, 118, 110, 0.3);
+}
+
+.view-tabs__button--active {
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.95), rgba(22, 78, 99, 0.95));
+  color: white;
+}
+
+.view-tabs__button strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.view-tabs__button strong {
+  font-size: 0.95rem;
+  line-height: 1.12;
+}
+
+.view-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
 }
 
 .eyebrow {
@@ -138,13 +185,16 @@ button {
 
 .section-card__header h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.05rem;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
 .section-card__header p {
   margin: 0.4rem 0 0;
   color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
@@ -171,6 +221,9 @@ button {
 
 .upload-card__dropzone p {
   margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
@@ -209,11 +262,15 @@ button {
 }
 
 .hint-text,
-.meta-strip,
 .history-item span,
 .empty-state {
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+.hint-text {
+  font-size: 0.85rem;
+  line-height: 1.35;
 }
 
 .warning-list {
@@ -274,6 +331,9 @@ button {
   display: grid;
   gap: 0.4rem;
   min-width: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
@@ -322,8 +382,9 @@ button {
 
 .schedule-table th,
 .schedule-table td {
-  padding: 0.45rem 0.6rem;
+  padding: 0.38rem 0.5rem;
   border-bottom: 1px solid var(--line);
+  font-size: 0.78rem;
   text-align: left;
   vertical-align: middle;
 }
@@ -333,7 +394,7 @@ button {
   top: 0;
   z-index: 1;
   background: var(--card-strong);
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
@@ -353,15 +414,17 @@ button {
 }
 
 .schedule-table input {
-  min-height: 40px;
-  padding: 0.6rem 0.8rem;
-  border-radius: 14px;
+  min-height: 34px;
+  padding: 0.45rem 0.55rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
 }
 
 .schedule-table .danger-button {
-  min-height: 40px;
-  padding: 0.6rem 0.8rem;
-  border-radius: 14px;
+  min-height: 34px;
+  padding: 0.45rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
   width: 100%;
 }
 
@@ -398,7 +461,7 @@ button {
 }
 
 .card-grid .section-card__header h2 {
-  font-size: 1.05rem;
+  font-size: 0.98rem;
 }
 
 .calc-card .field {
@@ -417,7 +480,7 @@ button {
 
 .calc-card .hint-text {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.78rem;
 }
 
 .result-highlight {
@@ -471,15 +534,21 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 1rem;
-  border-radius: 16px;
+  padding: 0.7rem 0.8rem;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.48);
   min-width: 0;
+  font-size: 0.85rem;
 }
 
 .history-item strong,
 .sticky-actions strong {
   display: block;
+}
+
+.history-item span {
+  font-size: 0.75rem;
+  line-height: 1.25;
 }
 
 .sticky-actions {
@@ -497,6 +566,13 @@ button {
 .sticky-actions p {
   margin: 0.25rem 0 0;
   color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.sticky-actions strong {
+  font-size: 0.9rem;
+  line-height: 1.2;
 }
 
 .sticky-actions__buttons {
@@ -519,36 +595,37 @@ button {
   }
 
   .hero h1 {
-    font-size: clamp(1.55rem, 7.5vw, 1.85rem);
-  }
-
-  .summary-grid {
-    grid-template-columns: 1fr;
+    font-size: clamp(1.18rem, 5.8vw, 1.45rem);
   }
 
   .schedule-table th,
   .schedule-table td {
-    padding: 0.35rem 0.3rem;
-    font-size: 0.82rem;
+    padding: 0.3rem 0.25rem;
+    font-size: 0.72rem;
   }
 
   .schedule-table input {
-    min-height: 34px;
-    padding: 0.45rem 0.4rem;
+    min-height: 32px;
+    padding: 0.38rem 0.32rem;
     border-radius: 10px;
+    font-size: 0.72rem;
   }
 
   .schedule-table .danger-button {
-    min-height: 34px;
-    padding: 0.45rem 0.35rem;
+    min-height: 32px;
+    padding: 0.38rem 0.3rem;
     border-radius: 10px;
-    font-size: 0.78rem;
+    font-size: 0.7rem;
   }
 }
 
 @media (min-width: 720px) {
   .app-shell {
     padding: 1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
+  }
+
+  .view-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .section-card {

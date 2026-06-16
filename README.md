@@ -95,13 +95,13 @@ The app has three calculation cards and one planning panel:
 - `Calculate Interest Saved`: enter the new interest amount from the updated repayment schedule. The app compares it with the original interest read from the uploaded PDF and shows `Total interest saved` in the results.
 - `Planning`: enter a fixed `Monthly reimbursement` amount under `Results`. The app estimates how many payment months remain if that amount is paid ahead of schedule every month.
 
-The first principal installment is always considered paid. The selector therefore starts from installment 2, and no default local value is stored for installment 1.
+The selector defaults to installment 2 when available, while installment 1 remains selectable if needed. Installment numbering is based only on rows with a positive principal amount, so fee rows with `Principal = 0` are ignored.
 
 `Remaining principal` is calculated by subtracting both the covered principal and any unused repayment amount from the total remaining principal.
 
-`Remaining installments` is based on the selected first unpaid payment date and the adjusted last payment date, counted inclusively. `Last payment date` is calculated from the original final payment date after subtracting all paid installments, including the already-paid first installment.
+`Remaining installments` is based on the selected first unpaid payment date and the adjusted last payment date, counted inclusively. `Last payment date` is calculated from the original final payment date after subtracting only the installments covered ahead of schedule by the current calculation.
 
-Planning estimates use the current latest result as the starting point. Each regular month pays the current installment, then the monthly reimbursement amount is applied to future principal installments starting with the next installment, so a reimbursement made in one month can cover one or more following months.
+Planning estimates use the current latest result as the starting point. Each regular month pays the current installment, then the monthly reimbursement amount is applied to future principal installments starting with the next installment, so reimbursements shorten the final payment date instead of moving the first unpaid installment forward.
 
 ## Manual correction is intentionally included
 
@@ -125,7 +125,7 @@ Manual edits and extracted values are parsed flexibly. Examples:
 ## CSV export
 
 - `Export schedule CSV` saves the current schedule rows as a CSV file with installment, principal, interest, payment date, and source columns.
-- `Export results CSV` saves a snapshot of the current app state, including Local Summary totals, relevant current inputs, latest Results, and Planning estimates.
+- `Export results CSV` saves a snapshot of the current app state, including Summary totals, relevant current inputs, latest Results, and Planning estimates.
 - `Clear local data` removes locally stored schedule data, drafts, planning input, and recent results.
 
 ## Important limitation

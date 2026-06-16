@@ -47,6 +47,30 @@ const STORAGE_KEYS = {
   planningDraft: 'mortgage.planningDraft'
 } as const;
 
+type AppView = 'input' | 'calculations' | 'results' | 'historyExports';
+
+const APP_VIEWS: Array<{
+  id: AppView;
+  label: string;
+}> = [
+  {
+    id: 'input',
+    label: 'Input'
+  },
+  {
+    id: 'calculations',
+    label: 'Calculations'
+  },
+  {
+    id: 'results',
+    label: 'Results'
+  },
+  {
+    id: 'historyExports',
+    label: 'History & Exports'
+  }
+];
+
 const buildWarning = (message: string, severity: AppWarning['severity'] = 'warning'): AppWarning => ({
   id: createRowId(),
   message,
@@ -61,7 +85,7 @@ const appendRecentResult = (
 const getDefaultFirstUnpaidRowId = (rows: ScheduleRow[]): string | null => {
   const paymentRows = principalRows(rows);
 
-  return paymentRows[1]?.id ?? null;
+  return paymentRows[1]?.id ?? paymentRows[0]?.id ?? null;
 };
 
 const readLegacyFirstUnpaidInstallment = (): number | null => {
@@ -75,7 +99,7 @@ const readLegacyFirstUnpaidInstallment = (): number | null => {
     const parsedValue: unknown = JSON.parse(storedValue);
     const installment = Number(parsedValue);
 
-    return Number.isInteger(installment) && installment >= 2 ? installment : null;
+    return Number.isInteger(installment) && installment >= 1 ? installment : null;
   } catch {
     return null;
   }
@@ -105,10 +129,10 @@ const getResultFirstUnpaidRowId = (
   if (legacyResult.firstUnpaidRowId) {
     const rowIndex = paymentRows.findIndex((row) => row.id === legacyResult.firstUnpaidRowId);
 
-    return rowIndex >= 1 ? legacyResult.firstUnpaidRowId : getDefaultFirstUnpaidRowId(rows);
+    return rowIndex >= 0 ? legacyResult.firstUnpaidRowId : getDefaultFirstUnpaidRowId(rows);
   }
 
-  const fallbackInstallment = Math.max(2, legacyResult.firstUnpaidInstallment ?? 2);
+  const fallbackInstallment = Math.max(1, legacyResult.firstUnpaidInstallment ?? 2);
 
   return paymentRows[fallbackInstallment - 1]?.id ?? null;
 };
@@ -182,9 +206,9 @@ const buildResultsSnapshotCsv = (params: {
 }): string => {
   const summary = rowsSummary(params.rows);
   const rows: Array<[string, string, string | number | null | undefined]> = [
-    ['Local Summary', 'Total rows', summary.totalRows],
-    ['Local Summary', 'Total installments', summary.totalInstallments],
-    ['Local Summary', 'Total principal', formatEditableMoney(summary.totalCredit)],
+    ['Summary', 'Total rows', summary.totalRows],
+    ['Summary', 'Total installments', summary.totalInstallments],
+    ['Summary', 'Total principal', formatEditableMoney(summary.totalCredit)],
     ['Inputs', 'New interest amount', params.interestDraft],
     ['Inputs', 'Monthly reimbursement', params.planningDraft]
   ];
@@ -199,7 +223,11 @@ const buildResultsSnapshotCsv = (params: {
       ['Results', 'Calculation type', latest.result.type],
       ['Results', resultInputLabel, latest.inputValue],
       ['Results', 'First unpaid installment', latest.result.firstUnpaidInstallment],
-      ['Results', 'Covered installments', latest.result.installmentNumbersCovered.length],
+      [
+        'Results',
+        'Covered installments',
+        latest.result.monthsCovered ?? latest.result.installmentNumbersCovered.length
+      ],
       ['Results', 'Remaining principal', formatEditableMoney(latest.result.remainingCredit)],
       ['Results', 'Remaining installments', latest.result.remainingMonths],
       ['Results', 'Remaining years', latest.result.remainingYearsLabel],
@@ -287,6 +315,7 @@ export const HomePage = () => {
   const [monthsError, setMonthsError] = useState<string | null>(null);
   const [interestError, setInterestError] = useState<string | null>(null);
   const [planningError, setPlanningError] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<AppView>('input');
 
   const sortedRows = useMemo(() => sortRows(rows), [rows]);
 
@@ -337,7 +366,7 @@ export const HomePage = () => {
 
   useEffect(() => {
     const paymentRows = sortedRows.filter(isPrincipalRow);
-    const selectablePaymentRows = paymentRows.slice(1);
+    const selectablePaymentRows = paymentRows;
 
     if (!selectablePaymentRows.length) {
       setFirstUnpaidRowId(null);
@@ -355,7 +384,7 @@ export const HomePage = () => {
   }, [firstUnpaidRowId, setFirstUnpaidRowId, sortedRows]);
 
   useEffect(() => {
-    const duplicates = findDuplicateInstallments(sortedRows);
+    const duplicates = findDuplicateInstallments(principalRows(sortedRows));
 
     setWarnings((currentWarnings) => {
       const baseWarnings = currentWarnings.filter(
@@ -582,91 +611,121 @@ export const HomePage = () => {
         <p>{uiText.appSubtitle}</p>
       </header>
 
-      <UploadCard
-        title={uiText.uploadTitle}
-        description={uiText.uploadDescription}
-        sourceFileName={meta?.sourceFileName ?? null}
-        isParsing={isParsing}
-        onSelectPdf={handleSelectPdf}
-      />
+      <nav className="view-tabs" aria-label="Main app views">
+        {APP_VIEWS.map((view) => (
+          <button
+            key={view.id}
+            type="button"
+            className={`view-tabs__button${activeView === view.id ? ' view-tabs__button--active' : ''}`}
+            aria-current={activeView === view.id ? 'page' : undefined}
+            onClick={() => setActiveView(view.id)}
+          >
+            <strong>{view.label}</strong>
+          </button>
+        ))}
+      </nav>
 
-      <SummaryCard
-        title={uiText.summaryTitle}
-        rows={sortedRows}
-        firstUnpaidInstallment={firstUnpaidInstallmentForSummary}
-        meta={meta}
-      />
+      <div className="view-panel">
+        {activeView === 'input' ? (
+          <>
+            <UploadCard
+              title={uiText.uploadTitle}
+              description={uiText.uploadDescription}
+              sourceFileName={meta?.sourceFileName ?? null}
+              isParsing={isParsing}
+              onSelectPdf={handleSelectPdf}
+            />
 
-      <FirstUnpaidSelector
-        title={uiText.firstUnpaidTitle}
-        rows={sortedRows}
-        value={firstUnpaidRowId}
-        onChange={setFirstUnpaidRowId}
-      />
+            <SummaryCard
+              title={uiText.summaryTitle}
+              rows={sortedRows}
+              firstUnpaidInstallment={firstUnpaidInstallmentForSummary}
+              meta={meta}
+            />
 
-      <div className="card-grid">
-        <CalculationCard
-          title={uiText.amountTitle}
-          inputLabel="Available amount"
-          inputPlaceholder="e.g. 7000"
-          value={amountDraft}
-          helperText="Adds principal values without exceeding the entered amount."
-          buttonLabel="Calculate"
-          error={amountError}
-          onValueChange={setAmountDraft}
-          onSubmit={handleCalculateByAmount}
-        />
-        <CalculationCard
-          title={uiText.monthsTitle}
-          inputLabel="Number of months"
-          inputPlaceholder="e.g. 10"
-          value={monthsDraft}
-          helperText="Adds the next N installments starting from the first unpaid installment."
-          buttonLabel="Calculate"
-          error={monthsError}
-          onValueChange={setMonthsDraft}
-          onSubmit={handleCalculateByMonths}
-        />
-        <CalculationCard
-          title={uiText.interestTitle}
-          inputLabel="New interest amount"
-          inputPlaceholder="e.g. 12000"
-          value={interestDraft}
-          helperText="Compares the new repayment schedule interest with the original interest read from the PDF."
-          buttonLabel="Calculate"
-          error={interestError}
-          onValueChange={setInterestDraft}
-          onSubmit={handleCalculateInterestSavings}
-        />
+            <ScheduleEditor
+              title={uiText.tableTitle}
+              rows={sortedRows}
+              onAddRow={handleAddRow}
+              onDeleteRow={handleDeleteRow}
+              onUpdateRow={handleUpdateRow}
+              onSortRows={handleSortRows}
+            />
+          </>
+        ) : null}
+
+        {activeView === 'calculations' ? (
+          <>
+            <FirstUnpaidSelector
+              title={uiText.firstUnpaidTitle}
+              rows={sortedRows}
+              value={firstUnpaidRowId}
+              onChange={setFirstUnpaidRowId}
+            />
+
+            <div className="card-grid">
+              <CalculationCard
+                title={uiText.amountTitle}
+                inputLabel="Available amount"
+                inputPlaceholder="e.g. 7000"
+                value={amountDraft}
+                helperText="Adds principal values without exceeding the entered amount."
+                buttonLabel="Calculate"
+                error={amountError}
+                onValueChange={setAmountDraft}
+                onSubmit={handleCalculateByAmount}
+              />
+              <CalculationCard
+                title={uiText.monthsTitle}
+                inputLabel="Number of months"
+                inputPlaceholder="e.g. 10"
+                value={monthsDraft}
+                helperText="Adds the next N installments starting from the first unpaid installment."
+                buttonLabel="Calculate"
+                error={monthsError}
+                onValueChange={setMonthsDraft}
+                onSubmit={handleCalculateByMonths}
+              />
+              <CalculationCard
+                title={uiText.interestTitle}
+                inputLabel="New interest amount"
+                inputPlaceholder="e.g. 12000"
+                value={interestDraft}
+                helperText="Compares the new repayment schedule interest with the original interest read from the PDF."
+                buttonLabel="Calculate"
+                error={interestError}
+                onValueChange={setInterestDraft}
+                onSubmit={handleCalculateInterestSavings}
+              />
+            </div>
+          </>
+        ) : null}
+
+        {activeView === 'results' ? (
+          <ResultsCard
+            title={uiText.resultsTitle}
+            results={recalculatedResults}
+            planningDraft={planningDraft}
+            planningResult={planningResult}
+            planningError={planningError}
+            onPlanningDraftChange={setPlanningDraft}
+            onPlanningCalculate={handleCalculatePlanning}
+          />
+        ) : null}
+
+        {activeView === 'historyExports' ? (
+          <>
+            <HistoryCard title={uiText.historyTitle} results={recalculatedResults} />
+            <StickyActions
+              title={uiText.exportsTitle}
+              onExportScheduleCsv={handleExportScheduleCsv}
+              onExportResultsCsv={handleExportResultsCsv}
+              onClearData={handleClearData}
+              note={uiText.stickyNote}
+            />
+          </>
+        ) : null}
       </div>
-
-      <ResultsCard
-        title={uiText.resultsTitle}
-        results={recalculatedResults}
-        planningDraft={planningDraft}
-        planningResult={planningResult}
-        planningError={planningError}
-        onPlanningDraftChange={setPlanningDraft}
-        onPlanningCalculate={handleCalculatePlanning}
-      />
-
-      <ScheduleEditor
-        title={uiText.tableTitle}
-        rows={sortedRows}
-        onAddRow={handleAddRow}
-        onDeleteRow={handleDeleteRow}
-        onUpdateRow={handleUpdateRow}
-        onSortRows={handleSortRows}
-      />
-
-      <HistoryCard title={uiText.historyTitle} results={recalculatedResults} />
-
-      <StickyActions
-        onExportScheduleCsv={handleExportScheduleCsv}
-        onExportResultsCsv={handleExportResultsCsv}
-        onClearData={handleClearData}
-        note={uiText.stickyNote}
-      />
     </main>
   );
 };

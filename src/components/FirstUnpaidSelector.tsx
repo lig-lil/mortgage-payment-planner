@@ -15,7 +15,11 @@ export const FirstUnpaidSelector = ({
   value,
   onChange
 }: FirstUnpaidSelectorProps) => {
-  const sortedRows = principalRows(rows).slice(1);
+  const selectableRows = principalRows(rows)
+    .map((row, index) => ({
+      row,
+      principalInstallmentNumber: index + 1
+    }));
 
   return (
     <SectionCard
@@ -27,12 +31,12 @@ export const FirstUnpaidSelector = ({
         <select
           value={value ?? ''}
           onChange={(event) => onChange(event.target.value)}
-          disabled={!sortedRows.length}
+          disabled={!selectableRows.length}
         >
-          {!sortedRows.length ? <option value="">No installments available</option> : null}
-          {sortedRows.map((row) => (
+          {!selectableRows.length ? <option value="">No installments available</option> : null}
+          {selectableRows.map(({ row, principalInstallmentNumber }) => (
             <option key={row.id} value={row.id}>
-              Installment {row.installmentNumber}
+              Installment {principalInstallmentNumber}
             </option>
           ))}
         </select>

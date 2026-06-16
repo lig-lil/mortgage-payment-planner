@@ -12,6 +12,7 @@ export const uiText = {
   interestTitle: 'Calculate Interest Saved',
   resultsTitle: 'Results',
   historyTitle: 'Recent History',
-  summaryTitle: 'Local Summary',
+  exportsTitle: 'Exports',
+  summaryTitle: 'Summary',
   stickyNote: 'Data is saved locally and stays available offline after the first load.'
 } as const;

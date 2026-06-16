@@ -60,6 +60,7 @@ export interface MonthsCalculationResult {
   firstUnpaidRowId: string;
   firstUnpaidInstallment: number;
   monthsRequested: number;
+  monthsCovered: number;
   totalAmountRequired: number;
   remainingCredit: number;
   remainingMonths: number;

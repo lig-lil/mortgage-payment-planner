@@ -23,7 +23,8 @@ export const ResultsCard = ({
   onPlanningCalculate
 }: ResultsCardProps) => {
   const latest = results[0];
-  const coveredInstallments = latest?.result.installmentNumbersCovered.length ?? 0;
+  const coveredInstallments =
+    latest?.result.monthsCovered ?? latest?.result.installmentNumbersCovered.length ?? 0;
   const coveredInstallmentsLabel = `${coveredInstallments} ${
     coveredInstallments === 1 ? 'month' : 'months'
   }`;
@@ -48,9 +49,6 @@ export const ResultsCard = ({
               <>
                 <p>
                   Principal covered: <strong>{formatMoney(latest.result.totalCreditCovered)}</strong>
-                </p>
-                <p>
-                  Unused amount: <strong>{formatMoney(latest.result.unusedAmount)}</strong>
                 </p>
                 <p>
                   Remaining principal: <strong>{formatMoney(latest.result.remainingCredit)}</strong>

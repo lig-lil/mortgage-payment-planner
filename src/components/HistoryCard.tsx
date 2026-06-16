@@ -33,9 +33,9 @@ export const HistoryCard = ({ title, results }: HistoryCardProps) => {
                 ? `${entry.result.monthsCovered} months / ${formatMoney(
                     entry.result.totalCreditCovered
                   )}`
-                : `${entry.result.monthsRequested} months / ${formatMoney(
-                    entry.result.totalAmountRequired
-                  )}`}
+                : `${entry.result.monthsRequested} selected / ${
+                    entry.result.monthsCovered ?? entry.result.installmentNumbersCovered.length
+                  } covered / ${formatMoney(entry.result.totalAmountRequired)}`}
             </div>
           </div>
         ))}

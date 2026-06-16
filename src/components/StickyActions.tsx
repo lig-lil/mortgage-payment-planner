@@ -1,4 +1,5 @@
 interface StickyActionsProps {
+  title?: string;
   onExportScheduleCsv: () => void;
   onExportResultsCsv: () => void;
   onClearData: () => void;
@@ -6,6 +7,7 @@ interface StickyActionsProps {
 }
 
 export const StickyActions = ({
+  title = 'Offline ready',
   onExportScheduleCsv,
   onExportResultsCsv,
   onClearData,
@@ -13,7 +15,7 @@ export const StickyActions = ({
 }: StickyActionsProps) => (
   <div className="sticky-actions">
     <div>
-      <strong>Offline ready</strong>
+      <strong>{title}</strong>
       <p>{note}</p>
     </div>
     <div className="sticky-actions__buttons">
