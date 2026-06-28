@@ -1,10 +1,8 @@
 import { FormEvent } from 'react';
 import { PlanningCalculationResult, StoredCalculationResult } from '../types';
 import { formatMoney } from '../utils/number';
-import { SectionCard } from './SectionCard';
 
 interface ResultsCardProps {
-  title: string;
   results: StoredCalculationResult[];
   planningDraft: string;
   planningResult: PlanningCalculationResult | null;
@@ -14,7 +12,6 @@ interface ResultsCardProps {
 }
 
 export const ResultsCard = ({
-  title,
   results,
   planningDraft,
   planningResult,
@@ -37,82 +34,44 @@ export const ResultsCard = ({
   };
 
   return (
-    <SectionCard title={title}>
+    <section className="planner-outcome">
+      <h2>Outcome</h2>
       {!latest ? (
-        <p className="empty-state">
-          Run one of the calculations to see the latest locally saved result.
-        </p>
+        <p className="empty-state">Run one of the calculations to see the latest locally saved result.</p>
       ) : (
         <div className="results-stack">
-          <div className="result-highlight">
-            {latest.result.type === 'amount' ? (
-              <>
-                <p>
-                  Principal covered: <strong>{formatMoney(latest.result.totalCreditCovered)}</strong>
-                </p>
-                <p>
-                  Remaining principal: <strong>{formatMoney(latest.result.remainingCredit)}</strong>
-                </p>
-              </>
-            ) : (
-              <>
-                <h3>{latest.result.monthsRequested} months selected</h3>
-                <p>
-                  Required amount: <strong>{formatMoney(latest.result.totalAmountRequired)}</strong>
-                </p>
-                <p>
-                  Remaining principal: <strong>{formatMoney(latest.result.remainingCredit)}</strong>
-                </p>
-              </>
-            )}
-            <p>Covered installments: {coveredInstallmentsLabel}</p>
-            <p>Remaining installments: {remainingInstallments}</p>
-            <p>Remaining years: {remainingYears}</p>
-            <p>Last payment date: {lastPaymentDateLabel}</p>
-            <p>
-              Total interest saved:{' '}
-              <strong>
-                {latest.result.totalInterestSaved == null
-                  ? '-'
-                  : formatMoney(latest.result.totalInterestSaved)}
-              </strong>
-            </p>
+          <div className="outcome-highlights">
+            <div>
+              <span>{latest.result.type === 'amount' ? 'Principal covered' : 'Required amount'}</span>
+              <strong>{formatMoney(latest.result.type === 'amount' ? latest.result.totalCreditCovered : latest.result.totalAmountRequired)}</strong>
+            </div>
+            <div><span>Remaining</span><strong>{formatMoney(latest.result.remainingCredit)}</strong></div>
           </div>
-          <div className="planning-panel">
-            <h3>Planning</h3>
+          <dl className="outcome-list">
+            <div><dt>Covered installments</dt><dd>{coveredInstallmentsLabel}</dd></div>
+            <div><dt>Remaining installments</dt><dd>{remainingInstallments}</dd></div>
+            <div><dt>Remaining years</dt><dd>{remainingYears}</dd></div>
+            <div><dt>Last payment date</dt><dd>{lastPaymentDateLabel}</dd></div>
+            <div className={latest.result.totalInterestSaved != null && latest.result.totalInterestSaved < 0 ? 'outcome-list__interest' : undefined}><dt>Interest saved</dt><dd>{latest.result.totalInterestSaved == null ? '-' : formatMoney(latest.result.totalInterestSaved)}</dd></div>
+          </dl>
+          <div className="planner-extra">
+            <span className="planner-label">What if I pay extra each month</span>
             <form className="planning-form" onSubmit={handlePlanningSubmit}>
-              <label className="field">
-                <span>Monthly reimbursement</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="e.g. 2000"
-                  value={planningDraft}
-                  onChange={(event) => onPlanningDraftChange(event.target.value)}
-                />
+              <label className="calculation-input">
+                <span>RON/mo</span>
+                <input type="text" inputMode="decimal" placeholder="2,000" value={planningDraft} onChange={(event) => onPlanningDraftChange(event.target.value)} />
               </label>
-              <button type="submit" className="primary-button">
-                Calculate
-              </button>
+              <button type="submit" className="secondary-button">Calculate</button>
             </form>
             {planningError ? <div className="inline-error">{planningError}</div> : null}
             <div className="planning-results">
-              <p>
-                Estimated remaining months:{' '}
-                <strong>{planningResult?.estimatedRemainingMonths ?? '-'}</strong>
-              </p>
-              <p>
-                Estimated remaining years:{' '}
-                <strong>{planningResult?.estimatedRemainingYearsLabel ?? '-'}</strong>
-              </p>
-              <p>
-                Estimated last payment date:{' '}
-                <strong>{planningResult?.estimatedLastPaymentDateLabel || '-'}</strong>
-              </p>
+              <p><span>Months</span><strong>{planningResult?.estimatedRemainingMonths ?? '-'}</strong></p>
+              <p><span>Years</span><strong>{planningResult?.estimatedRemainingYearsLabel ?? '-'}</strong></p>
+              <p><span>Last payment</span><strong>{planningResult?.estimatedLastPaymentDateLabel || '-'}</strong></p>
             </div>
           </div>
         </div>
       )}
-    </SectionCard>
+    </section>
   );
 };

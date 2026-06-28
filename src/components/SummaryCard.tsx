@@ -26,34 +26,29 @@ export const SummaryCard = ({
           <strong>{summary.totalRows}</strong>
         </div>
         <div className="summary-stat">
-          <span>Total installments</span>
+          <span>Installments</span>
           <strong>{summary.totalInstallments}</strong>
         </div>
         <div className="summary-stat">
-          <span>Total principal</span>
+          <span>First unpaid</span>
+          <strong>{firstUnpaidInstallment ? `#${firstUnpaidInstallment}` : '-'}</strong>
+        </div>
+        <div className="summary-stat">
+          <span>Principal total</span>
           <strong>{formatMoney(summary.totalCredit)}</strong>
         </div>
         <div className="summary-stat">
-          <span>First unpaid installment</span>
-          <strong>{firstUnpaidInstallment ?? '-'}</strong>
-        </div>
-        <div className="summary-stat">
-          <span>Installment range</span>
+          <span>Range</span>
           <strong>
             {summary.firstInstallment ?? '-'}
-            {summary.lastInstallment ? ` -> ${summary.lastInstallment}` : ''}
+            {summary.lastInstallment ? <> &rarr; {summary.lastInstallment}</> : null}
           </strong>
         </div>
-      </div>
-      {meta ? (
-        <div className="meta-strip">
-          <span>File: {meta.sourceFileName}</span>
-          <span>Pages scanned: {meta.parsedPages}</span>
-          <span>
-            Principal column confidence: {Math.round((meta.creditColumn.confidence || 0) * 100)}%
-          </span>
+        <div className="summary-stat summary-stat--confidence">
+          <span>Confidence</span>
+          <strong>{meta ? `${Math.round((meta.creditColumn.confidence || 0) * 100)}%` : '-'}</strong>
         </div>
-      ) : null}
+      </div>
     </SectionCard>
   );
 };

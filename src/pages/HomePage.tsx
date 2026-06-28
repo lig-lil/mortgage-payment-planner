@@ -49,6 +49,7 @@ const STORAGE_KEYS = {
 } as const;
 
 type AppView = 'home' | 'schedule' | 'planner' | 'history';
+type PlannerMode = 'amount' | 'months' | 'interest';
 
 const APP_VIEWS: Array<{
   id: AppView;
@@ -326,6 +327,7 @@ export const HomePage = () => {
   const [interestError, setInterestError] = useState<string | null>(null);
   const [planningError, setPlanningError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<AppView>('home');
+  const [plannerMode, setPlannerMode] = useState<PlannerMode>('amount');
 
   const sortedRows = useMemo(() => sortRows(rows), [rows]);
 
@@ -469,12 +471,35 @@ export const HomePage = () => {
   };
 
   const addResultToHistory = (inputValue: number, result: StoredCalculationResult['result']) => {
+    const activeInterestAmount = recalculatedResults[0]?.result.newInterestAmount;
+    let resultWithInterestSavings = result;
+
+    if (activeInterestAmount != null) {
+      try {
+        resultWithInterestSavings = {
+          ...result,
+          ...calculateInterestSavings({
+            rows,
+            result,
+            newInterestAmount: activeInterestAmount,
+            lastInterestAmount: meta?.lastInterestAmount
+          })
+        };
+      } catch {
+        resultWithInterestSavings = {
+          ...result,
+          newInterestAmount: activeInterestAmount,
+          totalInterestSaved: recalculatedResults[0]?.result.totalInterestSaved
+        };
+      }
+    }
+
     setRecentResults((currentResults) =>
       appendRecentResult(currentResults, {
         id: createRowId(),
         createdAt: new Date().toISOString(),
         inputValue,
-        result
+        result: resultWithInterestSavings
       })
     );
   };
@@ -640,26 +665,33 @@ export const HomePage = () => {
             onOpenPlanner={() => setActiveView('planner')}
             onOpenSchedule={() => setActiveView('schedule')}
             onOpenHistory={() => setActiveView('history')}
+            onOriginalPrincipalChange={(value) =>
+              setMeta((currentMeta) =>
+                currentMeta ? { ...currentMeta, originalPrincipal: value } : currentMeta
+              )
+            }
           />
         ) : null}
 
         {activeView === 'schedule' ? (
           <>
-            <header className="page-header"><span className="page-kicker">Schedule</span><h1>Review your repayment schedule</h1><p>Upload, check, and adjust the principal values used by your plans.</p></header>
-            <UploadCard
-              title={uiText.uploadTitle}
-              description={uiText.uploadDescription}
-              sourceFileName={meta?.sourceFileName ?? null}
-              isParsing={isParsing}
-              onSelectPdf={handleSelectPdf}
-            />
+            <header className="page-header page-header--schedule"><span className="page-kicker">Schedule</span><h1>Repayment schedule</h1><p>{uiText.uploadDescription}</p></header>
+            <div className="schedule-overview-grid">
+              <UploadCard
+                title={uiText.uploadTitle}
+                meta={meta}
+                rowCount={sortedRows.length}
+                isParsing={isParsing}
+                onSelectPdf={handleSelectPdf}
+              />
 
-            <SummaryCard
-              title={uiText.summaryTitle}
-              rows={sortedRows}
-              firstUnpaidInstallment={firstUnpaidInstallmentForSummary}
-              meta={meta}
-            />
+              <SummaryCard
+                title={uiText.summaryTitle}
+                rows={sortedRows}
+                firstUnpaidInstallment={firstUnpaidInstallmentForSummary}
+                meta={meta}
+              />
+            </div>
 
             <ScheduleEditor
               title={uiText.tableTitle}
@@ -674,62 +706,38 @@ export const HomePage = () => {
 
         {activeView === 'planner' ? (
           <>
-            <header className="page-header"><span className="page-kicker">Planner</span><h1>Plan your next move</h1><p>Compare prepayment scenarios and see their impact in one place.</p></header>
+            <header className="planner-page-header">
+              <div><span className="page-kicker">Planner</span><h1>Test a scenario</h1><p>Compare prepayment scenarios and see their impact.</p></div>
+              <button type="button" className="secondary-button" disabled={!recalculatedResults.length} onClick={() => setActiveView('history')}>Save scenario</button>
+            </header>
             <FirstUnpaidSelector
-              title={uiText.firstUnpaidTitle}
               rows={sortedRows}
               value={firstUnpaidRowId}
               onChange={setFirstUnpaidRowId}
             />
-
-            <div className="card-grid">
-              <CalculationCard
-                title={uiText.amountTitle}
-                inputLabel="Available amount"
-                inputPlaceholder="e.g. 7000"
-                value={amountDraft}
-                helperText="Adds principal values without exceeding the entered amount."
-                buttonLabel="Calculate"
-                error={amountError}
-                onValueChange={setAmountDraft}
-                onSubmit={handleCalculateByAmount}
-              />
-              <CalculationCard
-                title={uiText.monthsTitle}
-                inputLabel="Number of months"
-                inputPlaceholder="e.g. 10"
-                value={monthsDraft}
-                helperText="Adds the next N installments starting from the first unpaid installment."
-                buttonLabel="Calculate"
-                error={monthsError}
-                onValueChange={setMonthsDraft}
-                onSubmit={handleCalculateByMonths}
-              />
-              <CalculationCard
-                title={uiText.interestTitle}
-                inputLabel="New interest amount"
-                inputPlaceholder="e.g. 12000"
-                value={interestDraft}
-                helperText="Compares the new repayment schedule interest with the original interest read from the PDF."
-                buttonLabel="Calculate"
-                error={interestError}
-                onValueChange={setInterestDraft}
-                onSubmit={handleCalculateInterestSavings}
+            <div className="planner-workspace">
+              <section className="planner-input-panel">
+                <nav className="planner-method-tabs" aria-label="Calculation method">
+                  <button type="button" className={plannerMode === 'amount' ? 'is-active' : ''} onClick={() => setPlannerMode('amount')}>By amount</button>
+                  <button type="button" className={plannerMode === 'months' ? 'is-active' : ''} onClick={() => setPlannerMode('months')}>By months</button>
+                  <button type="button" className={plannerMode === 'interest' ? 'is-active' : ''} onClick={() => setPlannerMode('interest')}>Interest saved</button>
+                </nav>
+                <div className="planner-method-content">
+                  {plannerMode === 'amount' ? <CalculationCard title={uiText.amountTitle} inputLabel="Available amount" inputPlaceholder="15,000.00" inputPrefix="RON" shortcuts={[{ label: '5,000', value: 5000 }, { label: '10,000', value: 10000 }, { label: '15,000', value: 15000 }, { label: '25,000', value: 25000 }]} value={amountDraft} helperText={`We'll add principal values starting from installment #${firstUnpaidInstallmentForSummary ?? '-'} without exceeding this amount.`} buttonLabel="Calculate →" error={amountError} onValueChange={setAmountDraft} onSubmit={handleCalculateByAmount} /> : null}
+                  {plannerMode === 'months' ? <CalculationCard title={uiText.monthsTitle} inputLabel="Number of months" inputPlaceholder="e.g. 10" value={monthsDraft} helperText="We'll add the next N installments starting from the first unpaid installment." buttonLabel="Calculate →" error={monthsError} onValueChange={setMonthsDraft} onSubmit={handleCalculateByMonths} /> : null}
+                  {plannerMode === 'interest' ? <CalculationCard title={uiText.interestTitle} inputLabel="New interest amount" inputPlaceholder="e.g. 12000" inputPrefix="RON" value={interestDraft} helperText="Compares the new repayment schedule interest with the original interest read from the PDF." buttonLabel="Calculate →" error={interestError} onValueChange={setInterestDraft} onSubmit={handleCalculateInterestSavings} /> : null}
+                </div>
+              </section>
+              <ResultsCard
+                results={recalculatedResults}
+                planningDraft={planningDraft}
+                planningResult={planningResult}
+                planningError={planningError}
+                onPlanningDraftChange={setPlanningDraft}
+                onPlanningCalculate={handleCalculatePlanning}
               />
             </div>
           </>
-        ) : null}
-
-        {activeView === 'planner' ? (
-          <ResultsCard
-            title={uiText.resultsTitle}
-            results={recalculatedResults}
-            planningDraft={planningDraft}
-            planningResult={planningResult}
-            planningError={planningError}
-            onPlanningDraftChange={setPlanningDraft}
-            onPlanningCalculate={handleCalculatePlanning}
-          />
         ) : null}
 
         {activeView === 'history' ? (

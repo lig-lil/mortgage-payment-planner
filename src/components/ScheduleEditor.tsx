@@ -16,6 +16,7 @@ interface DraftMap {
   [rowId: string]: {
     installmentNumber: string;
     creditAmount: string;
+    interestAmount: string;
   };
 }
 
@@ -30,7 +31,7 @@ export const ScheduleEditor = ({
   const rowsSignature = useMemo(
     () =>
       rows
-        .map((row) => `${row.id}:${row.installmentNumber}:${row.creditAmount}`)
+        .map((row) => `${row.id}:${row.installmentNumber}:${row.creditAmount}:${row.interestAmount ?? ''}`)
         .join('|'),
     [rows]
   );
@@ -40,8 +41,9 @@ export const ScheduleEditor = ({
   useEffect(() => {
     const nextDrafts = rows.reduce<DraftMap>((accumulator, row) => {
       accumulator[row.id] = {
-        installmentNumber: String(row.installmentNumber),
-        creditAmount: formatEditableMoney(row.creditAmount)
+        installmentNumber: String(row.installmentNumber).padStart(3, '0'),
+        creditAmount: formatEditableMoney(row.creditAmount),
+        interestAmount: row.interestAmount == null ? '' : formatEditableMoney(row.interestAmount)
       };
       return accumulator;
     }, {});
@@ -67,6 +69,7 @@ export const ScheduleEditor = ({
 
     const installmentNumber = parsePositiveInteger(draft.installmentNumber);
     const creditAmount = parseFlexibleNumber(draft.creditAmount);
+    const interestAmount = parseFlexibleNumber(draft.interestAmount);
 
     if (installmentNumber != null) {
       onUpdateRow(rowId, { installmentNumber });
@@ -75,19 +78,25 @@ export const ScheduleEditor = ({
     if (creditAmount != null && creditAmount >= 0) {
       onUpdateRow(rowId, { creditAmount });
     }
+
+    if (!draft.interestAmount.trim()) {
+      onUpdateRow(rowId, { interestAmount: undefined });
+    } else if (interestAmount != null && interestAmount >= 0) {
+      onUpdateRow(rowId, { interestAmount });
+    }
   };
 
   return (
     <SectionCard
       title={title}
-      description={`Extracted rows: ${rows.length}. You can edit the values directly and then run calculations.`}
+      description="Click any value to edit. Changes save instantly."
       actions={
         <div className="inline-actions">
           <button type="button" className="secondary-button" onClick={onSortRows}>
-            Sort by installment
+            Sort by #
           </button>
           <button type="button" className="primary-button" onClick={onAddRow}>
-            Add row
+            + Add row
           </button>
         </div>
       }
@@ -96,15 +105,16 @@ export const ScheduleEditor = ({
         <table className="schedule-table">
           <thead>
             <tr>
-              <th>Installment</th>
+              <th>#</th>
               <th>Principal</th>
-              <th>Actions</th>
+              <th>Interest</th>
+              <th><span className="visually-hidden">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={3}>
+                <td colSpan={4}>
                   No rows available yet. You can add a new schedule manually.
                 </td>
               </tr>
@@ -112,24 +122,37 @@ export const ScheduleEditor = ({
               rows.map((row) => (
                 <tr key={row.id}>
                   <td>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={drafts[row.id]?.installmentNumber ?? String(row.installmentNumber)}
-                      onChange={(event) =>
-                        updateDraft(row.id, 'installmentNumber', event.target.value)
-                      }
-                      onBlur={() => commitDraft(row.id)}
-                    />
+                    <div className="installment-cell">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        aria-label={`Installment ${row.installmentNumber}`}
+                        value={drafts[row.id]?.installmentNumber ?? String(row.installmentNumber).padStart(3, '0')}
+                        onChange={(event) => updateDraft(row.id, 'installmentNumber', event.target.value)}
+                        onBlur={() => commitDraft(row.id)}
+                      />
+                    </div>
+                  </td>
+                  <td>
+                    <div className="money-cell">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        aria-label={`Principal for installment ${row.installmentNumber}`}
+                        value={drafts[row.id]?.creditAmount ?? formatEditableMoney(row.creditAmount)}
+                        onChange={(event) => updateDraft(row.id, 'creditAmount', event.target.value)}
+                        onBlur={() => commitDraft(row.id)}
+                      />
+                    </div>
                   </td>
                   <td>
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={drafts[row.id]?.creditAmount ?? formatEditableMoney(row.creditAmount)}
-                      onChange={(event) =>
-                        updateDraft(row.id, 'creditAmount', event.target.value)
-                      }
+                      aria-label={`Interest for installment ${row.installmentNumber}`}
+                      placeholder="–"
+                      value={drafts[row.id]?.interestAmount ?? (row.interestAmount == null ? '' : formatEditableMoney(row.interestAmount))}
+                      onChange={(event) => updateDraft(row.id, 'interestAmount', event.target.value)}
                       onBlur={() => commitDraft(row.id)}
                     />
                   </td>

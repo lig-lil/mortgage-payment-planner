@@ -1,16 +1,13 @@
 import { ScheduleRow } from '../types';
 import { principalRows } from '../utils/rows';
-import { SectionCard } from './SectionCard';
 
 interface FirstUnpaidSelectorProps {
-  title: string;
   rows: ScheduleRow[];
   value: string | null;
   onChange: (value: string) => void;
 }
 
 export const FirstUnpaidSelector = ({
-  title,
   rows,
   value,
   onChange
@@ -22,12 +19,13 @@ export const FirstUnpaidSelector = ({
     }));
 
   return (
-    <SectionCard
-      title={title}
-      description="Calculations start from this installment and continue in ascending order."
-    >
-      <label className="field">
-        <span>Starting installment</span>
+    <section className="planner-start-card">
+      <div className="planner-start-card__copy">
+        <span className="planner-label">Starting from</span>
+        <p><strong>First unpaid installment</strong><span>— calculations proceed in ascending order</span></p>
+      </div>
+      <label className="planner-start-card__select">
+        <span>Installment</span>
         <select
           value={value ?? ''}
           onChange={(event) => onChange(event.target.value)}
@@ -36,11 +34,11 @@ export const FirstUnpaidSelector = ({
           {!selectableRows.length ? <option value="">No installments available</option> : null}
           {selectableRows.map(({ row, principalInstallmentNumber }) => (
             <option key={row.id} value={row.id}>
-              Installment {principalInstallmentNumber}
+              #{principalInstallmentNumber}
             </option>
           ))}
         </select>
       </label>
-    </SectionCard>
+    </section>
   );
 };

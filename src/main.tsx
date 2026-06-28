@@ -1,5 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import '@fontsource-variable/instrument-sans';
+import '@fontsource-variable/geist';
+import '@fontsource-variable/jetbrains-mono';
 import App from './App';
 import { registerPwa } from './pwa/register';
 import './styles.css';

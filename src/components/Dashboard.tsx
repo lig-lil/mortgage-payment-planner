@@ -1,6 +1,8 @@
+import { FormEvent, useState } from 'react';
 import { ExtractionMeta, ScheduleRow, StoredCalculationResult } from '../types';
-import { formatMoney } from '../utils/number';
+import { formatEditableMoney, formatMoney, parseFlexibleNumber } from '../utils/number';
 import { principalRows, rowsSummary } from '../utils/rows';
+import { formatScheduleDate } from '../utils/scheduleDate';
 
 interface DashboardProps {
   rows: ScheduleRow[];
@@ -10,6 +12,7 @@ interface DashboardProps {
   onOpenPlanner: () => void;
   onOpenSchedule: () => void;
   onOpenHistory: () => void;
+  onOriginalPrincipalChange: (value: number) => void;
 }
 
 const shortDate = (value: string) =>
@@ -27,8 +30,11 @@ export const Dashboard = ({
   results,
   onOpenPlanner,
   onOpenSchedule,
-  onOpenHistory
+  onOpenHistory,
+  onOriginalPrincipalChange
 }: DashboardProps) => {
+  const [isEditingOriginalPrincipal, setIsEditingOriginalPrincipal] = useState(false);
+  const [originalPrincipalDraft, setOriginalPrincipalDraft] = useState('');
   const summary = rowsSummary(rows);
   const payments = principalRows(rows);
   const latest = results[0];
@@ -37,19 +43,40 @@ export const Dashboard = ({
     .slice(unpaidIndex)
     .reduce((total, row) => total + row.creditAmount, 0);
   const principalRemaining = latest?.result.remainingCredit ?? scheduledRemaining;
+  const originalPrincipal = meta?.originalPrincipal ?? summary.totalCredit;
   const installmentsLeft =
     latest?.result.remainingMonths ?? Math.max(0, payments.length - unpaidIndex);
-  const paidPercent = summary.totalCredit
+  const paidPercent = originalPrincipal
     ? Math.min(
         100,
-        Math.max(0, ((summary.totalCredit - principalRemaining) / summary.totalCredit) * 100)
+        Math.max(0, ((originalPrincipal - principalRemaining) / originalPrincipal) * 100)
       )
     : 0;
   const lastScheduledPayment = [...payments]
     .reverse()
     .find((row) => row.paymentDate)?.paymentDate;
-  const lastPayment = latest?.result.lastPaymentDateLabel || lastScheduledPayment || '-';
+  const lastPayment =
+    latest?.result.lastPaymentDateLabel ||
+    (lastScheduledPayment ? formatScheduleDate(lastScheduledPayment) : '-');
   const interestSaved = latest?.result.totalInterestSaved;
+
+  const startEditingOriginalPrincipal = () => {
+    setOriginalPrincipalDraft(formatEditableMoney(originalPrincipal));
+    setIsEditingOriginalPrincipal(true);
+  };
+
+  const saveOriginalPrincipal = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = parseFlexibleNumber(originalPrincipalDraft);
+
+    if (value == null || value <= 0) {
+      return;
+    }
+
+    onOriginalPrincipalChange(value);
+    setIsEditingOriginalPrincipal(false);
+  };
+
   return (
     <div className="dashboard">
       <div className="dashboard__headline">
@@ -118,7 +145,27 @@ export const Dashboard = ({
           <div>
             <span>Principal remaining</span>
             <strong>{formatMoney(principalRemaining)}</strong>
-            <p>of {formatMoney(summary.totalCredit)} original principal</p>
+            {isEditingOriginalPrincipal ? (
+              <form className="original-principal-edit" onSubmit={saveOriginalPrincipal}>
+                <span>of</span>
+                <input
+                  aria-label="Original principal"
+                  type="text"
+                  inputMode="decimal"
+                  value={originalPrincipalDraft}
+                  onChange={(event) => setOriginalPrincipalDraft(event.target.value)}
+                  autoFocus
+                />
+                <span>original principal</span>
+                <button type="submit">Save</button>
+                <button type="button" onClick={() => setIsEditingOriginalPrincipal(false)}>Cancel</button>
+              </form>
+            ) : (
+              <div className="original-principal-line">
+                <p>of {formatMoney(originalPrincipal)} original principal</p>
+                {meta ? <button type="button" onClick={startEditingOriginalPrincipal}>Edit</button> : null}
+              </div>
+            )}
           </div>
           <div className="balance-card__percent">
             <span>Paid off</span>

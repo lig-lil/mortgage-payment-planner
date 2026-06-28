@@ -25,6 +25,7 @@ export interface ColumnDetection {
 export interface ExtractionMeta {
   sourceFileName: string;
   parsedPages: number;
+  originalPrincipal?: number;
   installmentColumn: ColumnDetection;
   creditColumn: ColumnDetection;
   interestColumn?: ColumnDetection;

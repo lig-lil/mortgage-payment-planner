@@ -106,5 +106,5 @@ export const formatScheduleDate = (isoDate: string): string => {
   const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
   const year = date.getUTCFullYear();
 
-  return `${day}-${month}-${year}`;
+  return `${day} ${month} ${year}`;
 };

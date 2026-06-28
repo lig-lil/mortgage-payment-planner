@@ -212,6 +212,53 @@ const extractLinesFromTextContent = (
   });
 };
 
+const normalizeCreditLabel = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const extractOriginalPrincipal = (lines: PdfTextLine[]): number | undefined => {
+  const firstPageLines = lines.filter((line) => line.pageNumber === 1);
+
+  for (let lineIndex = 0; lineIndex < firstPageLines.length; lineIndex += 1) {
+    const line = firstPageLines[lineIndex]!;
+    const labelIndex = line.segments.findIndex((segment) =>
+      /\bvaloare\s+credit\b/.test(normalizeCreditLabel(segment.text))
+    );
+
+    if (labelIndex < 0 && !/\bvaloare\s+credit\b/.test(normalizeCreditLabel(line.text))) {
+      continue;
+    }
+
+    const candidateSegments = labelIndex >= 0 ? line.segments.slice(labelIndex) : line.segments;
+    const value = candidateSegments
+      .map((segment) => parseFlexibleNumber(segment.text))
+      .find((candidate) => candidate != null && candidate > 0);
+    const fallbackValue = parseFlexibleNumber(line.text);
+
+    if (value != null) {
+      return value;
+    }
+
+    if (fallbackValue != null && fallbackValue > 0) {
+      return fallbackValue;
+    }
+
+    const nextLineValue = firstPageLines[lineIndex + 1]?.segments
+      .map((segment) => parseFlexibleNumber(segment.text))
+      .find((candidate) => candidate != null && candidate > 0);
+
+    if (nextLineValue != null) {
+      return nextLineValue;
+    }
+  }
+
+  return undefined;
+};
+
 const pickClosestNumericSegment = (
   segments: LineSegment[],
   x: number | null,
@@ -511,6 +558,8 @@ export const parseSchedulePdf = async (file: File): Promise<PdfParseResult> => {
     allLines.push(...extractLinesFromTextContent(textContent, pageNumber));
   }
 
+  const originalPrincipal = extractOriginalPrincipal(allLines);
+
   let activeColumns: ActiveColumns | null = null;
   let bestInstallmentColumn: ColumnDetection = { confidence: 0 };
   let bestCreditColumn: ColumnDetection = { confidence: 0 };
@@ -598,6 +647,7 @@ export const parseSchedulePdf = async (file: File): Promise<PdfParseResult> => {
   const meta: ExtractionMeta = {
     sourceFileName: file.name,
     parsedPages: pdf.numPages,
+    originalPrincipal,
     installmentColumn: bestInstallmentColumn,
     creditColumn: bestCreditColumn,
     interestColumn: bestInterestColumn,
