@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalculationCard } from '../components/CalculationCard';
+import { Dashboard } from '../components/Dashboard';
 import { FirstUnpaidSelector } from '../components/FirstUnpaidSelector';
 import { HistoryCard } from '../components/HistoryCard';
 import { ResultsCard } from '../components/ResultsCard';
@@ -47,29 +48,38 @@ const STORAGE_KEYS = {
   planningDraft: 'mortgage.planningDraft'
 } as const;
 
-type AppView = 'input' | 'calculations' | 'results' | 'historyExports';
+type AppView = 'home' | 'schedule' | 'planner' | 'history';
 
 const APP_VIEWS: Array<{
   id: AppView;
   label: string;
 }> = [
   {
-    id: 'input',
-    label: 'Input'
+    id: 'home',
+    label: 'Home'
   },
   {
-    id: 'calculations',
-    label: 'Calculations'
+    id: 'schedule',
+    label: 'Schedule'
   },
   {
-    id: 'results',
-    label: 'Results'
+    id: 'planner',
+    label: 'Planner'
   },
   {
-    id: 'historyExports',
-    label: 'History & Exports'
+    id: 'history',
+    label: 'History'
   }
 ];
+
+const ViewIcon = ({ view }: { view: AppView }) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    {view === 'home' ? <path d="M3 10.5 12 3l9 7.5V21H15v-7H9v7H3Z" /> : null}
+    {view === 'schedule' ? <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></> : null}
+    {view === 'planner' ? <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></> : null}
+    {view === 'history' ? <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5M12 7v5l4 2" /></> : null}
+  </svg>
+);
 
 const buildWarning = (message: string, severity: AppWarning['severity'] = 'warning'): AppWarning => ({
   id: createRowId(),
@@ -315,7 +325,7 @@ export const HomePage = () => {
   const [monthsError, setMonthsError] = useState<string | null>(null);
   const [interestError, setInterestError] = useState<string | null>(null);
   const [planningError, setPlanningError] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<AppView>('input');
+  const [activeView, setActiveView] = useState<AppView>('home');
 
   const sortedRows = useMemo(() => sortRows(rows), [rows]);
 
@@ -606,28 +616,36 @@ export const HomePage = () => {
 
   return (
     <main className="app-shell">
-      <header className="hero">
-        <h1>{uiText.appTitle}</h1>
-        <p>{uiText.appSubtitle}</p>
-      </header>
+      <aside className="app-sidebar">
+        <div className="app-brand"><span className="app-brand__mark">M</span><strong>Mortgage Planner</strong></div>
+        <span className="app-sidebar__label">Menu</span>
+        <nav className="view-tabs" aria-label="Main app views">
+          {APP_VIEWS.map((view) => (
+            <button key={view.id} type="button" className={`view-tabs__button${activeView === view.id ? ' view-tabs__button--active' : ''}`} aria-current={activeView === view.id ? 'page' : undefined} onClick={() => setActiveView(view.id)}>
+              <ViewIcon view={view.id} /><strong>{view.label}</strong>
+            </button>
+          ))}
+        </nav>
+        <div className="app-sidebar__privacy"><span>Data</span><p>Stored locally in your browser.<br />Nothing is uploaded.</p></div>
+      </aside>
+      <div className="app-content">
+        <div className="mobile-brand"><span className="app-brand__mark">M</span><strong>Mortgage Planner</strong></div>
+        <div className="view-panel">
+        {activeView === 'home' ? (
+          <Dashboard
+            rows={sortedRows}
+            firstUnpaidInstallment={firstUnpaidInstallmentForSummary}
+            meta={meta}
+            results={recalculatedResults}
+            onOpenPlanner={() => setActiveView('planner')}
+            onOpenSchedule={() => setActiveView('schedule')}
+            onOpenHistory={() => setActiveView('history')}
+          />
+        ) : null}
 
-      <nav className="view-tabs" aria-label="Main app views">
-        {APP_VIEWS.map((view) => (
-          <button
-            key={view.id}
-            type="button"
-            className={`view-tabs__button${activeView === view.id ? ' view-tabs__button--active' : ''}`}
-            aria-current={activeView === view.id ? 'page' : undefined}
-            onClick={() => setActiveView(view.id)}
-          >
-            <strong>{view.label}</strong>
-          </button>
-        ))}
-      </nav>
-
-      <div className="view-panel">
-        {activeView === 'input' ? (
+        {activeView === 'schedule' ? (
           <>
+            <header className="page-header"><span className="page-kicker">Schedule</span><h1>Review your repayment schedule</h1><p>Upload, check, and adjust the principal values used by your plans.</p></header>
             <UploadCard
               title={uiText.uploadTitle}
               description={uiText.uploadDescription}
@@ -654,8 +672,9 @@ export const HomePage = () => {
           </>
         ) : null}
 
-        {activeView === 'calculations' ? (
+        {activeView === 'planner' ? (
           <>
+            <header className="page-header"><span className="page-kicker">Planner</span><h1>Plan your next move</h1><p>Compare prepayment scenarios and see their impact in one place.</p></header>
             <FirstUnpaidSelector
               title={uiText.firstUnpaidTitle}
               rows={sortedRows}
@@ -701,7 +720,7 @@ export const HomePage = () => {
           </>
         ) : null}
 
-        {activeView === 'results' ? (
+        {activeView === 'planner' ? (
           <ResultsCard
             title={uiText.resultsTitle}
             results={recalculatedResults}
@@ -713,8 +732,9 @@ export const HomePage = () => {
           />
         ) : null}
 
-        {activeView === 'historyExports' ? (
+        {activeView === 'history' ? (
           <>
+            <header className="page-header"><span className="page-kicker">History</span><h1>Plans and exports</h1><p>Revisit recent scenarios or take your locally stored data with you.</p></header>
             <HistoryCard title={uiText.historyTitle} results={recalculatedResults} />
             <StickyActions
               title={uiText.exportsTitle}
@@ -725,6 +745,7 @@ export const HomePage = () => {
             />
           </>
         ) : null}
+        </div>
       </div>
     </main>
   );
