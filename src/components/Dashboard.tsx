@@ -1,6 +1,11 @@
 import { FormEvent, useState } from 'react';
 import { ExtractionMeta, ScheduleRow, StoredCalculationResult } from '../types';
-import { formatEditableMoney, formatMoney, parseFlexibleNumber } from '../utils/number';
+import {
+  formatEditableMoney,
+  formatMoney,
+  parseFlexibleNumber,
+  parsePositiveInteger
+} from '../utils/number';
 import { principalRows, rowsSummary } from '../utils/rows';
 import { formatScheduleDate } from '../utils/scheduleDate';
 
@@ -13,7 +18,25 @@ interface DashboardProps {
   onOpenSchedule: () => void;
   onOpenHistory: () => void;
   onOriginalPrincipalChange: (value: number) => void;
+  onOriginalPrincipalLockChange: (locked: boolean) => void;
+  onContractedYearChange: (value: string) => void;
+  onTotalInstallmentsChange: (value: number) => void;
+  onTotalInstallmentsLockChange: (locked: boolean, value?: number) => void;
 }
+
+const EditIcon = () => (
+  <svg viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M3 11.7 3.3 9.2 10.4 2.1l2.5 2.5-7.1 7.1-2.8.4Z" />
+    <path d="M9.5 3 12 5.5" />
+  </svg>
+);
+
+const LockIcon = ({ locked }: { locked: boolean }) => (
+  <svg viewBox="0 0 16 16" aria-hidden="true">
+    <rect x="3.5" y="7" width="9" height="6" rx="1.2" />
+    <path d={locked ? 'M5.5 7V5.3a2.5 2.5 0 0 1 5 0V7' : 'M5.5 7V5.3a2.5 2.5 0 0 1 4.4-1.6'} />
+  </svg>
+);
 
 const shortDate = (value: string) =>
   new Date(value).toLocaleString('en-US', {
@@ -31,25 +54,32 @@ export const Dashboard = ({
   onOpenPlanner,
   onOpenSchedule,
   onOpenHistory,
-  onOriginalPrincipalChange
+  onOriginalPrincipalChange,
+  onOriginalPrincipalLockChange,
+  onContractedYearChange,
+  onTotalInstallmentsChange,
+  onTotalInstallmentsLockChange
 }: DashboardProps) => {
   const [isEditingOriginalPrincipal, setIsEditingOriginalPrincipal] = useState(false);
   const [originalPrincipalDraft, setOriginalPrincipalDraft] = useState('');
+  const [isEditingTotalInstallments, setIsEditingTotalInstallments] = useState(false);
+  const [totalInstallmentsDraft, setTotalInstallmentsDraft] = useState('');
   const summary = rowsSummary(rows);
   const payments = principalRows(rows);
   const latest = results[0];
+  const isOriginalPrincipalLocked = Boolean(meta?.originalPrincipalLocked);
+  const isTotalInstallmentsLocked = Boolean(meta?.totalInstallmentsLocked);
+  const totalInstallments = meta?.totalInstallmentsOverride ?? summary.totalInstallments;
   const unpaidIndex = Math.max(0, (firstUnpaidInstallment ?? 1) - 1);
-  const scheduledRemaining = payments
-    .slice(unpaidIndex)
-    .reduce((total, row) => total + row.creditAmount, 0);
-  const principalRemaining = latest?.result.remainingCredit ?? scheduledRemaining;
+  const actualPrincipalRemaining = payments.reduce((total, row) => total + row.creditAmount, 0);
+  const scenarioPrincipalRemaining = latest?.result.remainingCredit;
   const originalPrincipal = meta?.originalPrincipal ?? summary.totalCredit;
   const installmentsLeft =
     latest?.result.remainingMonths ?? Math.max(0, payments.length - unpaidIndex);
   const paidPercent = originalPrincipal
     ? Math.min(
         100,
-        Math.max(0, ((originalPrincipal - principalRemaining) / originalPrincipal) * 100)
+        Math.max(0, ((originalPrincipal - actualPrincipalRemaining) / originalPrincipal) * 100)
       )
     : 0;
   const lastScheduledPayment = [...payments]
@@ -65,6 +95,11 @@ export const Dashboard = ({
     setIsEditingOriginalPrincipal(true);
   };
 
+  const startEditingTotalInstallments = () => {
+    setTotalInstallmentsDraft(String(totalInstallments || ''));
+    setIsEditingTotalInstallments(true);
+  };
+
   const saveOriginalPrincipal = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const value = parseFlexibleNumber(originalPrincipalDraft);
@@ -74,7 +109,21 @@ export const Dashboard = ({
     }
 
     onOriginalPrincipalChange(value);
+    onOriginalPrincipalLockChange(true);
     setIsEditingOriginalPrincipal(false);
+  };
+
+  const saveTotalInstallments = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = parsePositiveInteger(totalInstallmentsDraft);
+
+    if (value == null || value <= 0) {
+      return;
+    }
+
+    onTotalInstallmentsChange(value);
+    onTotalInstallmentsLockChange(true, value);
+    setIsEditingTotalInstallments(false);
   };
 
   return (
@@ -142,30 +191,58 @@ export const Dashboard = ({
 
       <section className="balance-card" aria-label="Mortgage progress">
         <div className="balance-card__topline">
-          <div>
-            <span>Principal remaining</span>
-            <strong>{formatMoney(principalRemaining)}</strong>
-            {isEditingOriginalPrincipal ? (
-              <form className="original-principal-edit" onSubmit={saveOriginalPrincipal}>
-                <span>of</span>
+          <div className="balance-card__principal-grid">
+            <div>
+              <span>Actual principal remaining</span>
+              <strong>{formatMoney(actualPrincipalRemaining)}</strong>
+              {isEditingOriginalPrincipal ? (
+                <form className="original-principal-edit" onSubmit={saveOriginalPrincipal}>
+                  <span>of</span>
+                  <input
+                    aria-label="Original principal"
+                    type="text"
+                    inputMode="decimal"
+                    value={originalPrincipalDraft}
+                    onChange={(event) => setOriginalPrincipalDraft(event.target.value)}
+                    autoFocus
+                  />
+                  <span>original principal</span>
+                  <button type="submit">Save</button>
+                  <button type="button" onClick={() => setIsEditingOriginalPrincipal(false)}>Cancel</button>
+                </form>
+              ) : (
+                <div className="original-principal-line">
+                  <p>of {formatMoney(originalPrincipal)} original principal</p>
+                  {meta ? (
+                    <>
+                      <button type="button" onClick={startEditingOriginalPrincipal}>Edit</button>
+                      <button
+                        type="button"
+                        className={isOriginalPrincipalLocked ? 'is-locked' : ''}
+                        onClick={() => onOriginalPrincipalLockChange(!isOriginalPrincipalLocked)}
+                      >
+                        {isOriginalPrincipalLocked ? 'Unlock' : 'Lock'}
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              )}
+              <label className="contracted-year-field">
                 <input
-                  aria-label="Original principal"
+                  aria-label="Contracted year"
                   type="text"
-                  inputMode="decimal"
-                  value={originalPrincipalDraft}
-                  onChange={(event) => setOriginalPrincipalDraft(event.target.value)}
-                  autoFocus
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={meta?.contractedYear ?? ''}
+                  onChange={(event) => onContractedYearChange(event.target.value.replace(/\D/g, '').slice(0, 4))}
                 />
-                <span>original principal</span>
-                <button type="submit">Save</button>
-                <button type="button" onClick={() => setIsEditingOriginalPrincipal(false)}>Cancel</button>
-              </form>
-            ) : (
-              <div className="original-principal-line">
-                <p>of {formatMoney(originalPrincipal)} original principal</p>
-                {meta ? <button type="button" onClick={startEditingOriginalPrincipal}>Edit</button> : null}
-              </div>
-            )}
+                <span>Contracted year</span>
+              </label>
+            </div>
+            <div className="balance-card__scenario-principal">
+              <span>Principal remaining after scenario</span>
+              <strong>{scenarioPrincipalRemaining == null ? '-' : formatMoney(scenarioPrincipalRemaining)}</strong>
+            </div>
           </div>
           <div className="balance-card__percent">
             <span>Paid off</span>
@@ -177,8 +254,43 @@ export const Dashboard = ({
         </div>
         <div className="balance-card__scale">
           <span>Installment 1</span>
-          <span>now · {firstUnpaidInstallment ?? '-'}/{summary.totalInstallments || '-'}</span>
-          <span>Installment {summary.totalInstallments || '-'}</span>
+          <span>now - {firstUnpaidInstallment ?? '-'}/{totalInstallments || '-'}</span>
+          <span className="installment-progress-end">
+            {isEditingTotalInstallments ? (
+              <form className="installments-edit" onSubmit={saveTotalInstallments}>
+                <span>Installment</span>
+                <input
+                  aria-label="Total installments"
+                  type="text"
+                  inputMode="numeric"
+                  value={totalInstallmentsDraft}
+                  onChange={(event) => setTotalInstallmentsDraft(event.target.value)}
+                  autoFocus
+                />
+                <button type="submit" aria-label="Save total installments">Save</button>
+                <button type="button" aria-label="Cancel total installments edit" onClick={() => setIsEditingTotalInstallments(false)}>Cancel</button>
+              </form>
+            ) : (
+              <>
+                Installment {totalInstallments || '-'}
+                {meta ? (
+                  <span className="installment-progress-actions">
+                    <button type="button" aria-label="Edit total installments" onClick={startEditingTotalInstallments}>
+                      <EditIcon />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={isTotalInstallmentsLocked ? 'Unlock total installments' : 'Lock total installments'}
+                      className={isTotalInstallmentsLocked ? 'is-locked' : ''}
+                      onClick={() => onTotalInstallmentsLockChange(!isTotalInstallmentsLocked, totalInstallments)}
+                    >
+                      <LockIcon locked={isTotalInstallmentsLocked} />
+                    </button>
+                  </span>
+                ) : null}
+              </>
+            )}
+          </span>
         </div>
       </section>
 

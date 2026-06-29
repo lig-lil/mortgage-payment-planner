@@ -5,7 +5,6 @@ import { FirstUnpaidSelector } from '../components/FirstUnpaidSelector';
 import { HistoryCard } from '../components/HistoryCard';
 import { ResultsCard } from '../components/ResultsCard';
 import { ScheduleEditor } from '../components/ScheduleEditor';
-import { StickyActions } from '../components/StickyActions';
 import { SummaryCard } from '../components/SummaryCard';
 import { UploadCard } from '../components/UploadCard';
 import { uiText } from '../content/uiText';
@@ -91,7 +90,7 @@ const buildWarning = (message: string, severity: AppWarning['severity'] = 'warni
 const appendRecentResult = (
   current: StoredCalculationResult[],
   next: StoredCalculationResult
-): StoredCalculationResult[] => [next, ...current].slice(0, 8);
+): StoredCalculationResult[] => [next, ...current];
 
 const getDefaultFirstUnpaidRowId = (rows: ScheduleRow[]): string | null => {
   const paymentRows = principalRows(rows);
@@ -429,7 +428,25 @@ export const HomePage = () => {
       const result = await parseSchedulePdf(file);
       setRows(result.rows);
       setWarnings(result.warnings);
-      setMeta(result.meta);
+      setMeta((currentMeta) => {
+        const nextMeta = { ...result.meta };
+
+        if (currentMeta?.originalPrincipalLocked && currentMeta.originalPrincipal != null) {
+          nextMeta.originalPrincipal = currentMeta.originalPrincipal;
+          nextMeta.originalPrincipalLocked = true;
+        }
+
+        if (currentMeta?.totalInstallmentsLocked && currentMeta.totalInstallmentsOverride != null) {
+          nextMeta.totalInstallmentsOverride = currentMeta.totalInstallmentsOverride;
+          nextMeta.totalInstallmentsLocked = true;
+        }
+
+        if (currentMeta?.contractedYear) {
+          nextMeta.contractedYear = currentMeta.contractedYear;
+        }
+
+        return nextMeta;
+      });
       setFirstUnpaidRowId(getDefaultFirstUnpaidRowId(result.rows));
     } catch (error) {
       const message =
@@ -499,6 +516,7 @@ export const HomePage = () => {
         id: createRowId(),
         createdAt: new Date().toISOString(),
         inputValue,
+        scenarioType: result.type,
         result: resultWithInterestSavings
       })
     );
@@ -572,11 +590,19 @@ export const HomePage = () => {
         ...savings
       };
 
-      setRecentResults((currentResults) =>
-        currentResults.map((entry, index) =>
+      setRecentResults((currentResults) => {
+        const updatedResults = currentResults.map((entry, index) =>
           index === 0 || entry.id === latest.id ? { ...entry, result: updatedResult } : entry
-        )
-      );
+        );
+
+        return appendRecentResult(updatedResults, {
+          id: createRowId(),
+          createdAt: new Date().toISOString(),
+          inputValue: latest.inputValue,
+          scenarioType: 'interest',
+          result: updatedResult
+        });
+      });
     } catch (error) {
       setInterestError(error instanceof Error ? error.message : 'Calculation failed.');
     }
@@ -620,6 +646,58 @@ export const HomePage = () => {
       }),
       'mortgage-results.csv'
     );
+  };
+
+  const handleExportScenarioCsv = (scenario: StoredCalculationResult) => {
+    const scenarioType = scenario.scenarioType ?? scenario.result.type;
+    const rows: Array<[string, string | number | null | undefined]> = [
+      ['scenario_type', scenarioType],
+      ['created_at', scenario.createdAt],
+      ['input_value', scenario.inputValue],
+      ['first_unpaid_installment', scenario.result.firstUnpaidInstallment],
+      ['covered_installments', scenario.result.monthsCovered],
+      ['total_schedule_months', scenario.result.totalScheduleMonths],
+      ['remaining_principal', formatEditableMoney(scenario.result.remainingCredit)],
+      ['remaining_installments', scenario.result.remainingMonths],
+      ['remaining_years', scenario.result.remainingYearsLabel],
+      ['last_payment_date', scenario.result.lastPaymentDateLabel],
+      [
+        'interest_saved',
+        scenario.result.totalInterestSaved == null
+          ? ''
+          : formatEditableMoney(scenario.result.totalInterestSaved)
+      ]
+    ];
+
+    if (scenario.result.type === 'amount') {
+      rows.push(
+        ['principal_covered', formatEditableMoney(scenario.result.totalCreditCovered)],
+        ['unused_amount', formatEditableMoney(scenario.result.unusedAmount)]
+      );
+    } else {
+      rows.push(
+        ['months_requested', scenario.result.monthsRequested],
+        ['required_amount', formatEditableMoney(scenario.result.totalAmountRequired)]
+      );
+    }
+
+    downloadCsv(
+      [['field', 'value'].join(','), ...rows.map((row) => row.map(escapeCsvCell).join(','))].join('\r\n'),
+      `mortgage-scenario-${scenario.createdAt.slice(0, 10)}.csv`
+    );
+  };
+
+  const handleOpenScenario = (scenarioId: string) => {
+    setRecentResults((currentResults) => {
+      const scenario = currentResults.find((entry) => entry.id === scenarioId);
+
+      if (!scenario) {
+        return currentResults;
+      }
+
+      return [scenario, ...currentResults.filter((entry) => entry.id !== scenarioId)];
+    });
+    setActiveView('planner');
   };
 
   const handleClearData = () => {
@@ -669,6 +747,36 @@ export const HomePage = () => {
               setMeta((currentMeta) =>
                 currentMeta ? { ...currentMeta, originalPrincipal: value } : currentMeta
               )
+            }
+            onOriginalPrincipalLockChange={(locked) =>
+              setMeta((currentMeta) =>
+                currentMeta ? { ...currentMeta, originalPrincipalLocked: locked } : currentMeta
+              )
+            }
+            onContractedYearChange={(value) =>
+              setMeta((currentMeta) =>
+                currentMeta ? { ...currentMeta, contractedYear: value } : currentMeta
+              )
+            }
+            onTotalInstallmentsChange={(value) =>
+              setMeta((currentMeta) =>
+                currentMeta ? { ...currentMeta, totalInstallmentsOverride: value } : currentMeta
+              )
+            }
+            onTotalInstallmentsLockChange={(locked, value) =>
+              setMeta((currentMeta) => {
+                if (!currentMeta) {
+                  return currentMeta;
+                }
+
+                return {
+                  ...currentMeta,
+                  totalInstallmentsOverride: locked
+                    ? value ?? currentMeta.totalInstallmentsOverride ?? rowsSummary(sortedRows).totalInstallments
+                    : currentMeta.totalInstallmentsOverride,
+                  totalInstallmentsLocked: locked
+                };
+              })
             }
           />
         ) : null}
@@ -742,15 +850,35 @@ export const HomePage = () => {
 
         {activeView === 'history' ? (
           <>
-            <header className="page-header"><span className="page-kicker">History</span><h1>Plans and exports</h1><p>Revisit recent scenarios or take your locally stored data with you.</p></header>
-            <HistoryCard title={uiText.historyTitle} results={recalculatedResults} />
-            <StickyActions
-              title={uiText.exportsTitle}
-              onExportScheduleCsv={handleExportScheduleCsv}
-              onExportResultsCsv={handleExportResultsCsv}
-              onClearData={handleClearData}
-              note={uiText.stickyNote}
+            <header className="history-page-header">
+              <div>
+                <span className="page-kicker">History</span>
+                <h1>Saved scenarios</h1>
+                <p>Compare past calculations and export the data you need.</p>
+              </div>
+              <div className="history-page-header__actions">
+                <button type="button" className="secondary-button" onClick={handleExportScheduleCsv}>
+                  Export schedule CSV
+                </button>
+                <button type="button" className="secondary-button" onClick={handleExportResultsCsv}>
+                  Export results CSV
+                </button>
+              </div>
+            </header>
+            <HistoryCard
+              results={recalculatedResults}
+              onOpenScenario={handleOpenScenario}
+              onExportScenarioCsv={handleExportScenarioCsv}
             />
+            <section className="local-data-card">
+              <div>
+                <strong>Local data</strong>
+                <p>All scenarios, the schedule, and your file data live in this browser only.</p>
+              </div>
+              <button type="button" className="danger-button" onClick={handleClearData}>
+                Clear local data
+              </button>
+            </section>
           </>
         ) : null}
         </div>

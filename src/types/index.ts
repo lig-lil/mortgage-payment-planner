@@ -26,6 +26,10 @@ export interface ExtractionMeta {
   sourceFileName: string;
   parsedPages: number;
   originalPrincipal?: number;
+  originalPrincipalLocked?: boolean;
+  contractedYear?: string;
+  totalInstallmentsOverride?: number;
+  totalInstallmentsLocked?: boolean;
   installmentColumn: ColumnDetection;
   creditColumn: ColumnDetection;
   interestColumn?: ColumnDetection;
@@ -86,6 +90,7 @@ export interface StoredCalculationResult {
   id: string;
   createdAt: string;
   inputValue: number;
+  scenarioType?: 'amount' | 'months' | 'interest';
   result: CalculationResult;
 }
 
