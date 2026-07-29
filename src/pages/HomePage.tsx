@@ -764,26 +764,6 @@ export const HomePage = () => {
                 return { ...rest, contractedPeriod: value };
               })
             }
-            onTotalInstallmentsChange={(value) =>
-              setMeta((currentMeta) =>
-                currentMeta ? { ...currentMeta, totalInstallmentsOverride: value } : currentMeta
-              )
-            }
-            onTotalInstallmentsLockChange={(locked, value) =>
-              setMeta((currentMeta) => {
-                if (!currentMeta) {
-                  return currentMeta;
-                }
-
-                return {
-                  ...currentMeta,
-                  totalInstallmentsOverride: locked
-                    ? value ?? currentMeta.totalInstallmentsOverride ?? rowsSummary(sortedRows).totalInstallments
-                    : currentMeta.totalInstallmentsOverride,
-                  totalInstallmentsLocked: locked
-                };
-              })
-            }
           />
         ) : null}
 

@@ -1016,7 +1016,7 @@ button {
 .contracted-period-field {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.2rem;
   width: fit-content;
   margin-top: 0.22rem;
   color: #8a969a;
@@ -1044,13 +1044,17 @@ button {
 }
 
 .contracted-period-field select {
-  width: 2.65rem;
+  width: 2.25rem;
+  padding-left: 0;
   padding-right: 0.05rem;
   appearance: none;
+  text-align: left;
 }
 
 .contracted-period-field input {
-  width: 2.85rem;
+  width: 2.55rem;
+  padding-left: 0.05rem;
+  padding-right: 0.05rem;
 }
 
 .contracted-period-field span {
@@ -1088,36 +1092,13 @@ button {
   background: linear-gradient(90deg, #268762, #51b9b0);
 }
 
-.balance-card__scale {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-top: 0.55rem;
-  color: #8a969a;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-}
-
-.balance-card__scale > span:nth-child(2) { text-align: center; }
-.balance-card__scale > span:last-child { text-align: right; }
-
-.installment-progress-end,
-.installments-edit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.3rem;
-}
-
-.original-principal-actions,
-.installment-progress-actions {
+.original-principal-actions {
   display: inline-flex;
   align-items: center;
   gap: 0.12rem;
 }
 
-.original-principal-actions button,
-.installment-progress-actions button {
+.original-principal-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1129,13 +1110,16 @@ button {
   color: var(--brand);
 }
 
-.original-principal-actions button.is-locked,
-.installment-progress-actions button.is-locked {
+.original-principal-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.original-principal-actions button.is-locked {
   color: #8a6818;
 }
 
-.original-principal-actions svg,
-.installment-progress-actions svg {
+.original-principal-actions svg {
   width: 0.8rem;
   height: 0.8rem;
   fill: none;
@@ -1143,27 +1127,6 @@ button {
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.installments-edit input {
-  width: 3.2rem;
-  min-height: 24px;
-  padding: 0.15rem 0.3rem;
-  border: 1px solid #cfcfc8;
-  border-radius: 5px;
-  background: #fff;
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  text-align: center;
-}
-
-.installments-edit button {
-  padding: 0;
-  background: transparent;
-  color: var(--brand);
-  font-size: 0.62rem;
-  font-weight: 700;
 }
 
 .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
@@ -1479,6 +1442,42 @@ button {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+@media (max-width: 639px) {
+  .schedule-overview-grid + .section-card {
+    padding: 1rem 0.75rem;
+  }
+
+  .schedule-table {
+    min-width: 0;
+  }
+
+  .schedule-table th,
+  .schedule-table td {
+    padding-inline: 0.3rem;
+  }
+
+  .schedule-table th:nth-child(1),
+  .schedule-table td:nth-child(1) { width: 15%; }
+  .schedule-table th:nth-child(2),
+  .schedule-table td:nth-child(2) { width: 31%; }
+  .schedule-table th:nth-child(3),
+  .schedule-table td:nth-child(3) { width: 31%; }
+  .schedule-table th:nth-child(4),
+  .schedule-table td:nth-child(4) { width: 23%; }
+
+  .installment-cell input,
+  .money-cell input {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .schedule-table .danger-button {
+    font-size: 0.58rem;
+    white-space: nowrap;
+  }
 }
 
 /* Planner */
