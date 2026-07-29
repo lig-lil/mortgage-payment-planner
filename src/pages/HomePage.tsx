@@ -441,8 +441,9 @@ export const HomePage = () => {
           nextMeta.totalInstallmentsLocked = true;
         }
 
-        if (currentMeta?.contractedYear) {
-          nextMeta.contractedYear = currentMeta.contractedYear;
+        const contractedPeriod = currentMeta?.contractedPeriod ?? currentMeta?.contractedYear;
+        if (contractedPeriod) {
+          nextMeta.contractedPeriod = contractedPeriod;
         }
 
         return nextMeta;
@@ -753,10 +754,15 @@ export const HomePage = () => {
                 currentMeta ? { ...currentMeta, originalPrincipalLocked: locked } : currentMeta
               )
             }
-            onContractedYearChange={(value) =>
-              setMeta((currentMeta) =>
-                currentMeta ? { ...currentMeta, contractedYear: value } : currentMeta
-              )
+            onContractedPeriodChange={(value) =>
+              setMeta((currentMeta) => {
+                if (!currentMeta) {
+                  return currentMeta;
+                }
+
+                const { contractedYear: _legacyContractedYear, ...rest } = currentMeta;
+                return { ...rest, contractedPeriod: value };
+              })
             }
             onTotalInstallmentsChange={(value) =>
               setMeta((currentMeta) =>

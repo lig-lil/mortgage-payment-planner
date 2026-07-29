@@ -27,6 +27,8 @@ export interface ExtractionMeta {
   parsedPages: number;
   originalPrincipal?: number;
   originalPrincipalLocked?: boolean;
+  contractedPeriod?: string;
+  /** @deprecated Kept for compatibility with previously stored schedules. */
   contractedYear?: string;
   totalInstallmentsOverride?: number;
   totalInstallmentsLocked?: boolean;

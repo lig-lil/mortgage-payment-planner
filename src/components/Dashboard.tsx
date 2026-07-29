@@ -19,10 +19,15 @@ interface DashboardProps {
   onOpenHistory: () => void;
   onOriginalPrincipalChange: (value: number) => void;
   onOriginalPrincipalLockChange: (locked: boolean) => void;
-  onContractedYearChange: (value: string) => void;
+  onContractedPeriodChange: (value: string) => void;
   onTotalInstallmentsChange: (value: number) => void;
   onTotalInstallmentsLockChange: (locked: boolean, value?: number) => void;
 }
+
+const MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+] as const;
 
 const EditIcon = () => (
   <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -56,7 +61,7 @@ export const Dashboard = ({
   onOpenHistory,
   onOriginalPrincipalChange,
   onOriginalPrincipalLockChange,
-  onContractedYearChange,
+  onContractedPeriodChange,
   onTotalInstallmentsChange,
   onTotalInstallmentsLockChange
 }: DashboardProps) => {
@@ -74,6 +79,9 @@ export const Dashboard = ({
   const actualPrincipalRemaining = payments.reduce((total, row) => total + row.creditAmount, 0);
   const scenarioPrincipalRemaining = latest?.result.remainingCredit;
   const originalPrincipal = meta?.originalPrincipal ?? summary.totalCredit;
+  const contractedPeriod = meta?.contractedPeriod ?? meta?.contractedYear ?? '';
+  const contractedMonth = MONTHS.find((month) => contractedPeriod.startsWith(month)) ?? '';
+  const contractedYear = contractedPeriod.match(/\d{1,4}$/)?.[0] ?? '';
   const installmentsLeft =
     latest?.result.remainingMonths ?? Math.max(0, payments.length - unpaidIndex);
   const paidPercent = originalPrincipal
@@ -124,6 +132,10 @@ export const Dashboard = ({
     onTotalInstallmentsChange(value);
     onTotalInstallmentsLockChange(true, value);
     setIsEditingTotalInstallments(false);
+  };
+
+  const updateContractedPeriod = (month: string, year: string) => {
+    onContractedPeriodChange([month, year].filter(Boolean).join(' '));
   };
 
   return (
@@ -214,30 +226,57 @@ export const Dashboard = ({
                 <div className="original-principal-line">
                   <p>of {formatMoney(originalPrincipal)} original principal</p>
                   {meta ? (
-                    <>
-                      <button type="button" onClick={startEditingOriginalPrincipal}>Edit</button>
+                    <span className="original-principal-actions">
                       <button
                         type="button"
+                        aria-label="Edit original principal"
+                        title="Edit original principal"
+                        onClick={startEditingOriginalPrincipal}
+                      >
+                        <EditIcon />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={isOriginalPrincipalLocked ? 'Unlock original principal' : 'Lock original principal'}
+                        title={isOriginalPrincipalLocked ? 'Unlock original principal' : 'Lock original principal'}
                         className={isOriginalPrincipalLocked ? 'is-locked' : ''}
                         onClick={() => onOriginalPrincipalLockChange(!isOriginalPrincipalLocked)}
                       >
-                        {isOriginalPrincipalLocked ? 'Unlock' : 'Lock'}
+                        <LockIcon locked={isOriginalPrincipalLocked} />
                       </button>
-                    </>
+                    </span>
                   ) : null}
                 </div>
               )}
-              <label className="contracted-year-field">
-                <input
-                  aria-label="Contracted year"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={meta?.contractedYear ?? ''}
-                  onChange={(event) => onContractedYearChange(event.target.value.replace(/\D/g, '').slice(0, 4))}
-                />
-                <span>Contracted year</span>
-              </label>
+              <div className="contracted-period-field" role="group" aria-label="Contracted period">
+                <div className="contracted-period-field__inputs">
+                  <select
+                    aria-label="Contracted month"
+                    value={contractedMonth}
+                    onChange={(event) => updateContractedPeriod(event.target.value, contractedYear)}
+                  >
+                    <option value="">Mon</option>
+                    {MONTHS.map((month) => (
+                      <option key={month} value={month}>{month}</option>
+                    ))}
+                  </select>
+                  <input
+                    aria-label="Contracted year"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="Year"
+                    value={contractedYear}
+                    onChange={(event) =>
+                      updateContractedPeriod(
+                        contractedMonth,
+                        event.target.value.replace(/\D/g, '').slice(0, 4)
+                      )
+                    }
+                  />
+                </div>
+                <span>Contracted period</span>
+              </div>
             </div>
             <div className="balance-card__scenario-principal">
               <span>Principal remaining after scenario</span>

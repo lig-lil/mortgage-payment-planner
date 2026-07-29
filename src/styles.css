@@ -945,7 +945,7 @@ button {
 .balance-card__principal-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
+  gap: 0.6rem;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -973,10 +973,10 @@ button {
 .original-principal-line {
   display: flex;
   align-items: baseline;
-  gap: 0.45rem;
+  gap: 0.3rem;
+  min-width: 0;
 }
 
-.original-principal-line button,
 .original-principal-edit button {
   padding: 0;
   background: transparent;
@@ -985,8 +985,9 @@ button {
   font-weight: 700;
 }
 
-.original-principal-line button.is-locked {
-  color: #8a6818;
+.original-principal-line p {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .original-principal-edit {
@@ -1012,20 +1013,25 @@ button {
 
 .original-principal-edit button:last-child { color: var(--muted); }
 
-.contracted-year-field {
+.contracted-period-field {
   display: flex;
   align-items: center;
   gap: 0.35rem;
   width: fit-content;
-  margin-top: 0.35rem;
+  margin-top: 0.22rem;
   color: #8a969a;
   font-family: var(--font-mono);
   font-size: 0.62rem;
   line-height: 1.2;
 }
 
-.contracted-year-field input {
-  width: 2.65rem;
+.contracted-period-field__inputs {
+  display: inline-flex;
+  align-items: center;
+}
+
+.contracted-period-field input,
+.contracted-period-field select {
   min-height: 18px;
   padding: 0.05rem 0.2rem;
   border: 1px solid transparent;
@@ -1037,15 +1043,27 @@ button {
   text-align: center;
 }
 
-.contracted-year-field span {
+.contracted-period-field select {
+  width: 2.65rem;
+  padding-right: 0.05rem;
+  appearance: none;
+}
+
+.contracted-period-field input {
+  width: 2.85rem;
+}
+
+.contracted-period-field span {
   color: #8a969a;
   font-family: var(--font-mono);
   font-size: 0.62rem;
   line-height: 1.2;
 }
 
-.contracted-year-field input:hover,
-.contracted-year-field input:focus {
+.contracted-period-field input:hover,
+.contracted-period-field input:focus,
+.contracted-period-field select:hover,
+.contracted-period-field select:focus {
   border-color: #cfcfc8;
   outline: none;
   background: #fff;
@@ -1091,12 +1109,14 @@ button {
   gap: 0.3rem;
 }
 
+.original-principal-actions,
 .installment-progress-actions {
   display: inline-flex;
   align-items: center;
   gap: 0.12rem;
 }
 
+.original-principal-actions button,
 .installment-progress-actions button {
   display: inline-flex;
   align-items: center;
@@ -1109,10 +1129,12 @@ button {
   color: var(--brand);
 }
 
+.original-principal-actions button.is-locked,
 .installment-progress-actions button.is-locked {
   color: #8a6818;
 }
 
+.original-principal-actions svg,
 .installment-progress-actions svg {
   width: 0.8rem;
   height: 0.8rem;
@@ -1212,7 +1234,7 @@ button {
   .dashboard__headline-actions button { min-width: 130px; }
   .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .recent-plan { grid-template-columns: minmax(140px, 1fr) minmax(270px, 1.3fr); align-items: center; }
-  .balance-card__principal-grid { grid-template-columns: minmax(0, 1.15fr) minmax(210px, 0.85fr); align-items: start; }
+  .balance-card__principal-grid { grid-template-columns: minmax(0, 1.15fr) minmax(210px, 0.85fr); align-items: start; gap: 1rem; }
 }
 
 @media (min-width: 760px) {
