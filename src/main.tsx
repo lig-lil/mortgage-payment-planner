@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import '@fontsource-variable/instrument-sans';
 import '@fontsource-variable/geist';
 import '@fontsource-variable/jetbrains-mono';
+import '@fontsource/kaushan-script/400.css';
 import App from './App';
 import { registerPwa } from './pwa/register';
 import './styles.css';

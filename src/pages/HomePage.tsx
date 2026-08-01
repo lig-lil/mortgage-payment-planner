@@ -721,7 +721,7 @@ export const HomePage = () => {
   return (
     <main className="app-shell">
       <aside className="app-sidebar">
-        <div className="app-brand"><span className="app-brand__mark">M</span><strong>Mortgage Planner</strong></div>
+        <div className="app-brand"><span className="app-brand__mark">mp</span><strong>Mortgage Planner</strong></div>
         <span className="app-sidebar__label">Menu</span>
         <nav className="view-tabs" aria-label="Main app views">
           {APP_VIEWS.map((view) => (
@@ -733,7 +733,7 @@ export const HomePage = () => {
         <div className="app-sidebar__privacy"><span>Data</span><p>Stored locally in your browser.<br />Nothing is uploaded.</p></div>
       </aside>
       <div className="app-content">
-        <div className="mobile-brand"><span className="app-brand__mark">M</span><strong>Mortgage Planner</strong></div>
+        <div className="mobile-brand"><span className="app-brand__mark">mp</span><strong>Mortgage Planner</strong></div>
         <div className="view-panel">
         {activeView === 'home' ? (
           <Dashboard
@@ -817,7 +817,7 @@ export const HomePage = () => {
                   <button type="button" className={plannerMode === 'interest' ? 'is-active' : ''} onClick={() => setPlannerMode('interest')}>Interest saved</button>
                 </nav>
                 <div className="planner-method-content">
-                  {plannerMode === 'amount' ? <CalculationCard title={uiText.amountTitle} inputLabel="Available amount" inputPlaceholder="15,000.00" inputPrefix="RON" shortcuts={[{ label: '5,000', value: 5000 }, { label: '10,000', value: 10000 }, { label: '15,000', value: 15000 }, { label: '25,000', value: 25000 }]} value={amountDraft} helperText={`We'll add principal values starting from installment #${firstUnpaidInstallmentForSummary ?? '-'} without exceeding this amount.`} buttonLabel="Calculate →" error={amountError} onValueChange={setAmountDraft} onSubmit={handleCalculateByAmount} /> : null}
+                  {plannerMode === 'amount' ? <CalculationCard title={uiText.amountTitle} inputLabel="Available amount" inputPlaceholder="15,000.00" inputPrefix="RON" shortcuts={[{ label: '5,000', value: 5000 }, { label: '10,000', value: 10000 }, { label: '15,000', value: 15000 }]} value={amountDraft} helperText={`We'll add principal values starting from installment #${firstUnpaidInstallmentForSummary ?? '-'} without exceeding this amount.`} buttonLabel="Calculate →" error={amountError} onValueChange={setAmountDraft} onSubmit={handleCalculateByAmount} /> : null}
                   {plannerMode === 'months' ? <CalculationCard title={uiText.monthsTitle} inputLabel="Number of months" inputPlaceholder="e.g. 10" value={monthsDraft} helperText="We'll add the next N installments starting from the first unpaid installment." buttonLabel="Calculate →" error={monthsError} onValueChange={setMonthsDraft} onSubmit={handleCalculateByMonths} /> : null}
                   {plannerMode === 'interest' ? <CalculationCard title={uiText.interestTitle} inputLabel="New interest amount" inputPlaceholder="e.g. 12000" inputPrefix="RON" value={interestDraft} helperText="Compares the new repayment schedule interest with the original interest read from the PDF." buttonLabel="Calculate →" error={interestError} onValueChange={setInterestDraft} onSubmit={handleCalculateInterestSavings} /> : null}
                 </div>
