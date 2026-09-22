@@ -72,11 +72,11 @@ export const LatestScenarioCard = ({
           <p>Create a repayment scenario to see how an extra payment could change your mortgage.</p>
         </div>
       )}
-      <footer className="latest-scenario-card__footer">
+      {!latest ? <footer className="latest-scenario-card__footer">
         <button type="button" className="primary-button" onClick={onOpenPlanner}>
-          {latest ? 'View in Planner' : 'New scenario'} <span aria-hidden="true">→</span>
+          New scenario <span aria-hidden="true">→</span>
         </button>
-      </footer>
+      </footer> : null}
     </section>
   );
 };

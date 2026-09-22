@@ -57,6 +57,10 @@ export const Dashboard = ({
     ? null
     : actualPrincipalRemaining - scenarioPrincipalRemaining;
   const interestSaved = latest?.result.totalInterestSaved;
+  const uploadedAt = meta?.extractedAt ? new Date(meta.extractedAt) : null;
+  const uploadedDate = uploadedAt && !Number.isNaN(uploadedAt.getTime())
+    ? uploadedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
 
   return (
     <div className="dashboard">
@@ -66,11 +70,11 @@ export const Dashboard = ({
           <h1>Your mortgage at a glance</h1>
         </div>
         <div className="dashboard__headline-actions">
-          <button type="button" className="secondary-button" onClick={onOpenSchedule}>
-            Upload new PDF
-          </button>
           <button type="button" className="primary-button" onClick={onOpenPlanner}>
             New scenario <span aria-hidden="true">&rarr;</span>
+          </button>
+          <button type="button" className="secondary-button" onClick={onOpenSchedule}>
+            Upload new PDF
           </button>
         </div>
       </div>
@@ -87,9 +91,9 @@ export const Dashboard = ({
             <div className="recent-plans__list">
               {results.slice(0, 3).map((entry) => (
                 <article key={entry.id} className="recent-plan">
-                  <div>
+                  <div className="recent-plan__heading">
                     <strong>{entry.result.type === 'amount' ? 'By amount' : 'By months'}</strong>
-                    <span>{shortDate(entry.createdAt)}</span>
+                    <span className="recent-plan__date">{shortDate(entry.createdAt)}</span>
                   </div>
                   <div className="recent-plan__stats">
                     <span>{entry.result.type === 'amount' ? formatMoney(entry.inputValue) : entry.inputValue + ' selected'}</span>
@@ -111,6 +115,9 @@ export const Dashboard = ({
         <section className="dashboard-panel active-schedule">
           <div className="dashboard-panel__header"><h2>Active schedule</h2></div>
           <strong className="active-schedule__name">{meta?.sourceFileName || 'No schedule uploaded'}</strong>
+          {meta?.sourceFileName ? (
+            <span className="active-schedule__date">{uploadedDate ? 'Uploaded ' + uploadedDate : 'Upload date unavailable'}</span>
+          ) : null}
           <span className="active-schedule__date">{meta ? meta.parsedPages + ' pages scanned' : 'Upload a PDF to get started'}</span>
           <dl>
             <div><dt>Rows</dt><dd>{summary.totalRows}</dd></div>
@@ -126,8 +133,7 @@ export const Dashboard = ({
         actualPrincipalRemaining={actualPrincipalRemaining}
         originalPrincipal={originalPrincipal}
         paidPercent={paidPercent}
-        totalInstallments={meta?.totalInstallmentsOverride ?? summary.totalInstallments}
-        onOpenSchedule={onOpenSchedule}
+        totalInstallments={summary.totalInstallments}
         onOriginalPrincipalChange={onOriginalPrincipalChange}
         onOriginalPrincipalLockChange={onOriginalPrincipalLockChange}
         onContractedPeriodChange={onContractedPeriodChange}

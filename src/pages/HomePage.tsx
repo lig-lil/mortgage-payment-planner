@@ -171,7 +171,7 @@ const applyStoredInterestSavings = (
     return {
       ...result,
       newInterestAmount: storedResult.newInterestAmount,
-      totalInterestSaved: storedResult.totalInterestSaved
+      totalInterestSaved: undefined
     };
   }
 };
@@ -436,11 +436,6 @@ export const HomePage = () => {
           nextMeta.originalPrincipalLocked = true;
         }
 
-        if (currentMeta?.totalInstallmentsLocked && currentMeta.totalInstallmentsOverride != null) {
-          nextMeta.totalInstallmentsOverride = currentMeta.totalInstallmentsOverride;
-          nextMeta.totalInstallmentsLocked = true;
-        }
-
         const contractedPeriod = currentMeta?.contractedPeriod ?? currentMeta?.contractedYear;
         if (contractedPeriod) {
           nextMeta.contractedPeriod = contractedPeriod;
@@ -489,36 +484,13 @@ export const HomePage = () => {
   };
 
   const addResultToHistory = (inputValue: number, result: StoredCalculationResult['result']) => {
-    const activeInterestAmount = recalculatedResults[0]?.result.newInterestAmount;
-    let resultWithInterestSavings = result;
-
-    if (activeInterestAmount != null) {
-      try {
-        resultWithInterestSavings = {
-          ...result,
-          ...calculateInterestSavings({
-            rows,
-            result,
-            newInterestAmount: activeInterestAmount,
-            lastInterestAmount: meta?.lastInterestAmount
-          })
-        };
-      } catch {
-        resultWithInterestSavings = {
-          ...result,
-          newInterestAmount: activeInterestAmount,
-          totalInterestSaved: recalculatedResults[0]?.result.totalInterestSaved
-        };
-      }
-    }
-
     setRecentResults((currentResults) =>
       appendRecentResult(currentResults, {
         id: createRowId(),
         createdAt: new Date().toISOString(),
         inputValue,
         scenarioType: result.type,
-        result: resultWithInterestSavings
+        result
       })
     );
   };

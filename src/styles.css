@@ -923,7 +923,7 @@ button {
   margin-top: 1rem;
 }
 
-.dashboard__headline-actions button { min-width: 0; padding-inline: 0.45rem; }
+.dashboard__headline-actions button { min-width: 0; min-height: 36px; padding: 0.5rem 0.65rem; font-size: 0.78rem; }
 .dashboard,
 .dashboard__headline,
 .balance-card__topline > div,
@@ -1182,9 +1182,13 @@ button {
 .dashboard-panel__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .dashboard-panel__header h2 { margin: 0; font-size: 0.98rem; }
 .text-button { padding: 0; background: transparent; color: var(--brand); font-size: 0.75rem; }
-.recent-plans__list { display: grid; margin-top: 0.8rem; }
-.recent-plan { display: grid; gap: 0.6rem; padding: 0.8rem 0; border-top: 1px solid var(--line); }
-.recent-plan > div:first-child { display: grid; }
+.recent-plans { padding-block: 0.85rem; align-self: start; }
+.recent-plans__list { display: grid; margin-top: 0.5rem; }
+.recent-plan { display: grid; gap: 0.25rem; padding: 0.5rem 0; border-top: 1px solid var(--line); }
+.recent-plan:last-child { padding-bottom: 0; }
+.recent-plan__heading { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+.recent-plan__heading > strong { flex-shrink: 0; }
+.recent-plan__date { min-width: 0; }
 .recent-plan span { color: #89969b; font-size: 0.68rem; }
 .recent-plan__stats { display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; gap: 0.5rem; text-align: right; }
 .recent-plan__stats strong { font-family: var(--font-mono); font-size: 0.78rem; }
@@ -1218,9 +1222,8 @@ button {
 @media (min-width: 640px) {
   .dashboard__headline { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
   .dashboard__headline-actions { display: flex; margin-top: 0; }
-  .dashboard__headline-actions button { min-width: 130px; }
+  .dashboard__headline-actions button { min-width: 0; }
   .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .recent-plan { grid-template-columns: minmax(140px, 1fr) minmax(270px, 1.3fr); align-items: center; }
 }
 
 @media (min-width: 760px) {
@@ -2024,13 +2027,13 @@ button {
   }
 }
 
-.current-mortgage { min-width: 0; padding-block: 1rem; }
-.current-mortgage__header { margin-bottom: 0.8rem; }
+.current-mortgage { min-width: 0; padding-block: 0.8rem; }
+.current-mortgage__header { margin-bottom: 0.55rem; }
 .current-mortgage__header h2 { margin: 0; font-size: 0.85rem; letter-spacing: 0.08em; }
 .current-mortgage__header p { margin: 0.1rem 0 0; color: var(--muted); font-size: 0.78rem; }
 .current-mortgage .original-principal-line { flex-wrap: wrap; }
 .current-mortgage .original-principal-line p { flex: 0 1 auto; white-space: normal; overflow-wrap: anywhere; }
-.current-mortgage__details { display: flex; flex-wrap: wrap; gap: 1rem 1.25rem; margin-top: 1.25rem; }
+.current-mortgage__details { display: flex; flex-wrap: wrap; gap: 0.65rem 1.25rem; margin-top: 0.75rem; }
 .current-mortgage .contracted-period-field { flex-direction: column; align-items: flex-start; gap: 0.35rem; margin: 0; font-family: inherit; }
 .current-mortgage .contracted-period-field > span,
 .current-mortgage__installments > span { color: var(--muted); font-family: inherit; font-size: 0.78rem; line-height: 1.2; }
@@ -2040,7 +2043,7 @@ button {
 .current-mortgage .contracted-period-field select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .current-mortgage__installments { display: flex; flex-direction: column; gap: 0.35rem; padding-left: 1.25rem; border-left: 1px solid var(--line); }
 .current-mortgage__installments strong { display: flex; align-items: center; min-height: 32px; font-family: var(--font-mono); font-size: 1rem; font-weight: 500; }
-.current-mortgage__footer { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--line); }
+.current-mortgage__footer { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.75rem; padding-top: 0.65rem; border-top: 1px solid var(--line); }
 .current-mortgage__source { display: flex; align-items: flex-start; gap: 0.65rem; flex: 1 1 15rem; min-width: 0; }
 /* Offset the SVG canvas inset so the visible file edge aligns with the heading. */
 .current-mortgage__source svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--muted); transform: translateX(-3.5px); }
@@ -2048,7 +2051,7 @@ button {
 .current-mortgage__source strong { display: block; font-size: 0.8rem; font-weight: 500; overflow-wrap: anywhere; }
 .current-mortgage__source span { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.75rem; }
 .current-mortgage__footer .secondary-button { margin-left: auto; }
-.current-mortgage .mortgage-progress { margin-top: 0.8rem; }
+.current-mortgage .mortgage-progress { margin-top: 0.6rem; }
 @media (min-width: 900px) {
   .current-mortgage .balance-card__percent { margin-right: clamp(1.5rem, 4vw, 3rem); }
 }
@@ -2057,9 +2060,14 @@ button {
   .current-mortgage .balance-card__principal-grid { flex-basis: 100%; }
   .current-mortgage .balance-card__percent { text-align: left; }
 }
+@media (max-width: 639px) {
+  .current-mortgage { display: flex; flex-direction: column; }
+  .current-mortgage__details { order: 1; }
+  .current-mortgage__footer { order: 2; }
+}
 
-.latest-scenario-card { order: 3; min-width: 0; padding-block: 1rem; }
-.latest-scenario-card__header { margin-bottom: 0.8rem; }
+.latest-scenario-card { order: 3; min-width: 0; padding-block: 0.8rem; }
+.latest-scenario-card__header { margin-bottom: 0.55rem; }
 .latest-scenario-card__header h2 { margin: 0; font-size: 0.85rem; letter-spacing: 0.08em; }
 .latest-scenario-card__header p { margin: 0.1rem 0 0; color: var(--muted); font-size: 0.78rem; }
 .latest-scenario-card__main > span,
@@ -2067,11 +2075,11 @@ button {
 .latest-scenario-card__main > strong { display: block; margin-top: 0.2rem; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: clamp(1.8rem, 7vw, 2.65rem); line-height: 1.1; letter-spacing: -0.06em; }
 .latest-scenario-card__comparison { margin: 0.35rem 0 0; color: var(--muted); font-size: 0.78rem; overflow-wrap: anywhere; }
 .latest-scenario-card__comparison--positive { color: #27865e; }
-.latest-scenario-card__metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 1.25rem; margin: 1.25rem 0 0; }
+.latest-scenario-card__metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem 1.25rem; margin: 0.75rem 0 0; }
 .latest-scenario-card__metric { min-width: 0; }
-.latest-scenario-card__metric dd { margin: 0.35rem 0 0; font-family: var(--font-mono); font-size: 1rem; overflow-wrap: anywhere; }
+.latest-scenario-card__metric dd { margin: 0.2rem 0 0; font-family: var(--font-mono); font-size: 1rem; overflow-wrap: anywhere; }
 .latest-scenario-card__metric .latest-scenario-card__helper { color: var(--muted); font-family: inherit; font-size: 0.75rem; }
-.latest-scenario-card__footer { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--line); }
+.latest-scenario-card__footer { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.75rem; padding-top: 0.65rem; border-top: 1px solid var(--line); }
 .latest-scenario-card__footer button { max-width: 100%; }
 .latest-scenario-card__empty > strong { font-size: 1rem; }
 .latest-scenario-card__empty p { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.85rem; }
@@ -2096,8 +2104,7 @@ button {
   .dashboard .current-mortgage__footer,
   .dashboard .latest-scenario-card__footer { margin-top: auto; }
   .dashboard .current-mortgage .mortgage-progress,
-  .dashboard .latest-scenario-card__metrics,
-  .dashboard .latest-scenario-card__empty { margin-bottom: 1.25rem; }
+  .dashboard .latest-scenario-card__empty { margin-bottom: 0.65rem; }
   .dashboard .current-mortgage .balance-card__percent { margin-right: 0; flex-shrink: 0; }
   .dashboard .current-mortgage .balance-card__principal-grid strong,
   .dashboard .latest-scenario-card__main > strong { font-size: clamp(1.5rem, 2.5vw, 2rem); }
