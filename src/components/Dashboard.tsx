@@ -1,10 +1,12 @@
 import { CurrentMortgageCard } from './CurrentMortgageCard';
 import { LatestScenarioCard } from './LatestScenarioCard';
-import { ExtractionMeta, ScheduleRow, StoredCalculationResult } from '../types';
+import { ScheduleChangesCard } from './ScheduleChangesCard';
+import { ExtractionMeta, ScheduleComparison, ScheduleRow, StoredCalculationResult } from '../types';
 import { formatMoney } from '../utils/number';
-import { principalRows, rowsSummary } from '../utils/rows';
+import { actualPrincipalRemaining as getActualPrincipalRemaining, principalRows, rowsSummary } from '../utils/rows';
 
 interface DashboardProps {
+  scheduleComparison: ScheduleComparison | null;
   rows: ScheduleRow[];
   firstUnpaidInstallment: number | null;
   meta: ExtractionMeta | null;
@@ -26,6 +28,7 @@ const shortDate = (value: string) =>
   });
 
 export const Dashboard = ({
+  scheduleComparison,
   rows,
   firstUnpaidInstallment,
   meta,
@@ -41,7 +44,7 @@ export const Dashboard = ({
   const payments = principalRows(rows);
   const latest = results[0];
   const unpaidIndex = Math.max(0, (firstUnpaidInstallment ?? 1) - 1);
-  const actualPrincipalRemaining = payments.reduce((total, row) => total + row.creditAmount, 0);
+  const actualPrincipalRemaining = getActualPrincipalRemaining(rows);
   const scenarioPrincipalRemaining = latest?.result.remainingCredit;
   const originalPrincipal = meta?.originalPrincipal ?? summary.totalCredit;
   const installmentsLeft =
@@ -56,7 +59,9 @@ export const Dashboard = ({
   const principalReduction = scenarioPrincipalRemaining == null
     ? null
     : actualPrincipalRemaining - scenarioPrincipalRemaining;
-  const interestSaved = latest?.result.totalInterestSaved;
+  const interestSaved = latest?.scenarioType === 'interest'
+    ? latest.result.totalInterestSaved
+    : undefined;
   const uploadedAt = meta?.extractedAt ? new Date(meta.extractedAt) : null;
   const uploadedDate = uploadedAt && !Number.isNaN(uploadedAt.getTime())
     ? uploadedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -149,6 +154,7 @@ export const Dashboard = ({
         interestSaved={interestSaved}
         onOpenPlanner={onOpenPlanner}
       />
+      <ScheduleChangesCard comparison={scheduleComparison} />
     </div>
   );
 };

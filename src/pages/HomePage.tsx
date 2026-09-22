@@ -14,6 +14,7 @@ import {
   CalculationResult,
   ExtractionMeta,
   PlanningCalculationResult,
+  PreviousScheduleSnapshot,
   ScheduleRow,
   StoredCalculationResult
 } from '../types';
@@ -33,8 +34,10 @@ import {
   rowsSummary,
   sortRows
 } from '../utils/rows';
+import { compareRealSchedules, createRealScheduleSnapshot, isAcceptablePdfSchedule } from '../utils/scheduleComparison';
 
 const STORAGE_KEYS = {
+  previousScheduleSnapshot: 'mortgage.previousScheduleSnapshot',
   rows: 'mortgage.rows',
   warnings: 'mortgage.warnings',
   meta: 'mortgage.meta',
@@ -298,6 +301,10 @@ const downloadCsv = (csv: string, filename: string) => {
 };
 
 export const HomePage = () => {
+  // Additive storage key: existing installations start without a previous PDF.
+  const [previousScheduleSnapshot, setPreviousScheduleSnapshot] = useLocalStorage<PreviousScheduleSnapshot | null>(
+    STORAGE_KEYS.previousScheduleSnapshot, null
+  );
   const [rows, setRows] = useLocalStorage<ScheduleRow[]>(STORAGE_KEYS.rows, []);
   const [warnings, setWarnings] = useLocalStorage<AppWarning[]>(STORAGE_KEYS.warnings, []);
   const [meta, setMeta] = useLocalStorage<ExtractionMeta | null>(STORAGE_KEYS.meta, null);
@@ -329,6 +336,9 @@ export const HomePage = () => {
   const [plannerMode, setPlannerMode] = useState<PlannerMode>('amount');
 
   const sortedRows = useMemo(() => sortRows(rows), [rows]);
+  const scheduleComparison = useMemo(() => compareRealSchedules(
+    previousScheduleSnapshot, createRealScheduleSnapshot(rows, meta, firstUnpaidRowId)
+  ), [previousScheduleSnapshot, rows, meta, firstUnpaidRowId]);
 
   const firstUnpaidInstallmentForSummary = useMemo(() => {
     if (!firstUnpaidRowId) {
@@ -426,6 +436,11 @@ export const HomePage = () => {
     try {
       const { parseSchedulePdf } = await import('../services/pdfScheduleParser');
       const result = await parseSchedulePdf(file);
+      if (!isAcceptablePdfSchedule(result)) {
+        throw new Error('The PDF does not contain a valid repayment schedule. Your active and previous schedules were kept.');
+      }
+      // Rotate only after successful parsing and validation, before replacing active data.
+      setPreviousScheduleSnapshot(createRealScheduleSnapshot(rows, meta, firstUnpaidRowId));
       setRows(result.rows);
       setWarnings(result.warnings);
       setMeta((currentMeta) => {
@@ -678,6 +693,7 @@ export const HomePage = () => {
       window.localStorage.removeItem(key);
     });
     setRows([]);
+    setPreviousScheduleSnapshot(null);
     setWarnings([]);
     setMeta(null);
     setFirstUnpaidRowId(null);
@@ -709,6 +725,7 @@ export const HomePage = () => {
         <div className="view-panel">
         {activeView === 'home' ? (
           <Dashboard
+            scheduleComparison={scheduleComparison}
             rows={sortedRows}
             firstUnpaidInstallment={firstUnpaidInstallmentForSummary}
             meta={meta}

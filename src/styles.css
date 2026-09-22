@@ -2113,3 +2113,20 @@ button {
   .dashboard .latest-scenario-card__metric:nth-child(even) { padding-left: 1rem; border-left: 1px solid var(--line); }
   .dashboard .current-mortgage__source { flex-basis: 8rem; }
 }
+
+/* Observed changes between real PDFs; uses the existing Home card palette. */
+.dashboard > .schedule-changes { order: 3; grid-column: 1 / -1; padding-block: 0.8rem; }
+.schedule-changes__sources,
+.schedule-changes__empty { color: var(--muted); font-size: 0.78rem; }
+.schedule-changes__sources { margin: 0.5rem 0; overflow-wrap: anywhere; }
+.schedule-changes__empty p { margin: 0.25rem 0 0; }
+.schedule-changes__metrics { display: grid; gap: 0.65rem; margin: 0.65rem 0 0; }
+.schedule-changes__metrics > div { min-width: 0; }
+.schedule-changes__metrics > div + div { border-top: 1px solid var(--line); padding-top: 0.65rem; }
+.schedule-changes__metrics dt { color: var(--muted); font-size: 0.78rem; }
+.schedule-changes__metrics dd { margin: 0.2rem 0 0; font-family: var(--font-mono); font-size: 0.85rem; overflow-wrap: anywhere; }
+.schedule-changes__metrics .schedule-changes__delta { font-family: inherit; font-size: 0.78rem; }
+@media (min-width: 900px) {
+  .schedule-changes__metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+  .schedule-changes__metrics > div + div { border-top: 0; border-left: 1px solid var(--line); padding-top: 0; padding-left: 1rem; }
+}
