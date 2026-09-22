@@ -729,89 +729,37 @@ export const calculateMonthlyReimbursementPlanning = (params: {
     throw new Error('Run a principal calculation before calculating planning estimates.');
   }
 
-  const existingCoveredMonths =
-    params.result.monthsCovered ?? params.result.installmentNumbersCovered.length;
-  const resultRemainingMonths = Math.max(0, params.result.remainingMonths);
-  const currentBalanceCents = toCents(params.result.remainingCredit);
-  const remainingRows = paymentRows.slice(
-    startIndex,
-    startIndex + resultRemainingMonths
-  );
+  const currentBalance = params.result.remainingCredit;
 
-  if (resultRemainingMonths <= 0 || currentBalanceCents <= 0) {
+  if (currentBalance <= 0) {
     return {
-      monthlyReimbursement: fromCents(toCents(monthlyReimbursement)),
+      monthlyReimbursement,
       estimatedRemainingMonths: 0,
       estimatedRemainingYearsLabel: formatRemainingYears(0),
       estimatedLastPaymentDateLabel: ''
     };
   }
 
-  const monthlyReimbursementCents = toCents(monthlyReimbursement);
   const periods = deriveRatePeriods(paymentRows, startIndex);
 
   if (periods.length === 0) {
-    console.warn(
-      'Unable to derive early-payment interest rates from the schedule; using row-counting fallback.'
-    );
-    if (!remainingRows.length) {
-      return {
-        monthlyReimbursement: fromCents(monthlyReimbursementCents),
-        estimatedRemainingMonths: 0,
-        estimatedRemainingYearsLabel: formatRemainingYears(0),
-        estimatedLastPaymentDateLabel: ''
-      };
-    }
-
-    let prepaidPoolCents = 0;
-    let remainingIndex = 0;
-    let estimatedRemainingMonths = 0;
-
-    while (remainingIndex < remainingRows.length) {
-      estimatedRemainingMonths += 1;
-      remainingIndex += 1;
-      prepaidPoolCents += monthlyReimbursementCents;
-
-      while (
-        remainingIndex < remainingRows.length &&
-        prepaidPoolCents >= toCents(remainingRows[remainingIndex].creditAmount)
-      ) {
-        prepaidPoolCents -= toCents(remainingRows[remainingIndex].creditAmount);
-        remainingIndex += 1;
-      }
-    }
-
-    const additionalCoveredMonths = Math.max(0, resultRemainingMonths - estimatedRemainingMonths);
-    const estimatedLastPaymentDateLabel = calculateLastPaymentDateLabel(
-      paymentRows,
-      existingCoveredMonths + additionalCoveredMonths
-    );
-
-    return {
-      monthlyReimbursement: fromCents(monthlyReimbursementCents),
-      estimatedRemainingMonths,
-      estimatedRemainingYearsLabel: formatRemainingYears(estimatedRemainingMonths),
-      estimatedLastPaymentDateLabel
-    };
+    throw new Error('Unable to derive interest rates from the schedule for planning estimates.');
   }
 
-  const result = reamortize({
-    balance: fromCents(currentBalanceCents),
+  const { remainingMonths } = reamortize({
+    balance: currentBalance,
     periods,
-    monthlyExtraPayment: fromCents(monthlyReimbursementCents)
+    monthlyExtraPayment: monthlyReimbursement
   });
-  const additionalCoveredMonths = Math.max(0, resultRemainingMonths - result.remainingMonths);
-  const adjustedTerm = calculateAdjustedTerm(
-    paymentRows,
-    startIndex,
-    existingCoveredMonths + additionalCoveredMonths,
-    result.remainingMonths
-  );
+  const firstUnpaidDate = getRowPaymentDate(paymentRows[startIndex]);
+  const lastPaymentDate = firstUnpaidDate && remainingMonths > 0
+    ? addMonths(firstUnpaidDate, remainingMonths - 1)
+    : null;
 
   return {
-    monthlyReimbursement: fromCents(monthlyReimbursementCents),
-    estimatedRemainingMonths: adjustedTerm.remainingMonths,
-    estimatedRemainingYearsLabel: formatRemainingYears(adjustedTerm.remainingMonths),
-    estimatedLastPaymentDateLabel: adjustedTerm.lastPaymentDateLabel
+    monthlyReimbursement,
+    estimatedRemainingMonths: remainingMonths,
+    estimatedRemainingYearsLabel: formatRemainingYears(remainingMonths),
+    estimatedLastPaymentDateLabel: lastPaymentDate ? formatScheduleDate(lastPaymentDate) : ''
   };
 };
