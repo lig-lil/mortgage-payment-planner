@@ -8,7 +8,6 @@ interface CurrentMortgageCardProps {
   originalPrincipal: number;
   paidPercent: number;
   totalInstallments: number;
-  onOpenSchedule: () => void;
   onOriginalPrincipalChange: (value: number) => void;
   onOriginalPrincipalLockChange: (locked: boolean) => void;
   onContractedPeriodChange: (value: string) => void;
@@ -35,7 +34,7 @@ const LockIcon = ({ locked }: { locked: boolean }) => (
 
 export const CurrentMortgageCard = ({
   meta, actualPrincipalRemaining, originalPrincipal, paidPercent, totalInstallments,
-  onOpenSchedule, onOriginalPrincipalChange, onOriginalPrincipalLockChange, onContractedPeriodChange
+  onOriginalPrincipalChange, onOriginalPrincipalLockChange, onContractedPeriodChange
 }: CurrentMortgageCardProps) => {
   const [isEditingOriginalPrincipal, setIsEditingOriginalPrincipal] = useState(false);
   const [originalPrincipalDraft, setOriginalPrincipalDraft] = useState('');
@@ -43,10 +42,6 @@ export const CurrentMortgageCard = ({
   const contractedPeriod = meta?.contractedPeriod ?? meta?.contractedYear ?? '';
   const contractedMonth = MONTHS.find((month) => contractedPeriod.startsWith(month)) ?? '';
   const contractedYear = contractedPeriod.match(/\d{1,4}$/)?.[0] ?? '';
-  const uploadedAt = meta?.extractedAt ? new Date(meta.extractedAt) : null;
-  const uploadedDate = uploadedAt && !Number.isNaN(uploadedAt.getTime())
-    ? uploadedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : null;
 
   const startEditingOriginalPrincipal = () => {
     if (isOriginalPrincipalLocked) {
@@ -181,10 +176,8 @@ export const CurrentMortgageCard = ({
             </svg>
             <div>
               <strong>{meta?.sourceFileName || 'No active PDF'}</strong>
-              <span>{meta?.sourceFileName ? (uploadedDate ? 'Uploaded ' + uploadedDate : 'Upload date unavailable') : 'Upload a PDF to get started'}</span>
             </div>
           </div>
-          <button type="button" className="secondary-button" onClick={onOpenSchedule}>View details</button>
         </footer>
       </section>
   );

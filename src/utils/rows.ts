@@ -30,6 +30,10 @@ export const isPrincipalRow = (row: ScheduleRow): boolean => toCents(row.creditA
 export const principalRows = (rows: ScheduleRow[]): ScheduleRow[] =>
   sortRows(rows).filter(isPrincipalRow);
 
+// Current Mortgage's actual balance includes all principal rows in the active PDF.
+export const actualPrincipalRemaining = (rows: ScheduleRow[]): number =>
+  principalRows(rows).reduce((total, row) => total + row.creditAmount, 0);
+
 export const sanitizeRows = (rows: ScheduleRow[]): ScheduleRow[] =>
   rows
     .map((row) => {

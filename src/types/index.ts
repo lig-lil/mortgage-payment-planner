@@ -45,8 +45,6 @@ export interface PdfParseResult {
   meta: ExtractionMeta;
 }
 
-<<<<<<< Updated upstream
-=======
 /** Real active PDF at replacement time. Never contains scenario or Planner inputs. */
 export interface PreviousScheduleSnapshot {
   sourceFileName: string;
@@ -68,7 +66,6 @@ export interface ScheduleComparison {
   termDifferenceMonths: number | null;
 }
 
->>>>>>> Stashed changes
 export interface AmountCalculationResult {
   type: 'amount';
   firstUnpaidRowId: string;

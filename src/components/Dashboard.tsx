@@ -1,11 +1,13 @@
 import { EstimatedInterestSavedCard } from './EstimatedInterestSavedCard';
 import { CurrentMortgageCard } from './CurrentMortgageCard';
 import { LatestScenarioCard } from './LatestScenarioCard';
-import { ExtractionMeta, ScheduleRow, StoredCalculationResult } from '../types';
+import { ScheduleChangesCard } from './ScheduleChangesCard';
+import { ExtractionMeta, ScheduleComparison, ScheduleRow, StoredCalculationResult } from '../types';
 import { formatMoney } from '../utils/number';
-import { principalRows, rowsSummary } from '../utils/rows';
+import { actualPrincipalRemaining as getActualPrincipalRemaining, principalRows, rowsSummary } from '../utils/rows';
 
 interface DashboardProps {
+  scheduleComparison: ScheduleComparison | null;
   rows: ScheduleRow[];
   firstUnpaidInstallment: number | null;
   meta: ExtractionMeta | null;
@@ -27,6 +29,7 @@ const shortDate = (value: string) =>
   });
 
 export const Dashboard = ({
+  scheduleComparison,
   rows,
   firstUnpaidInstallment,
   meta,
@@ -42,7 +45,7 @@ export const Dashboard = ({
   const payments = principalRows(rows);
   const latest = results[0];
   const unpaidIndex = Math.max(0, (firstUnpaidInstallment ?? 1) - 1);
-  const actualPrincipalRemaining = payments.reduce((total, row) => total + row.creditAmount, 0);
+  const actualPrincipalRemaining = getActualPrincipalRemaining(rows);
   const scenarioPrincipalRemaining = latest?.result.remainingCredit;
   const originalPrincipal = meta?.originalPrincipal ?? summary.totalCredit;
   const installmentsLeft =
@@ -57,7 +60,13 @@ export const Dashboard = ({
   const principalReduction = scenarioPrincipalRemaining == null
     ? null
     : actualPrincipalRemaining - scenarioPrincipalRemaining;
-  const interestSaved = latest?.result.totalInterestSaved;
+  const interestSaved = latest?.scenarioType === 'interest'
+    ? latest.result.totalInterestSaved
+    : undefined;
+  const uploadedAt = meta?.extractedAt ? new Date(meta.extractedAt) : null;
+  const uploadedDate = uploadedAt && !Number.isNaN(uploadedAt.getTime())
+    ? uploadedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
 
   return (
     <div className="dashboard">
@@ -67,11 +76,11 @@ export const Dashboard = ({
           <h1>Your mortgage at a glance</h1>
         </div>
         <div className="dashboard__headline-actions">
-          <button type="button" className="secondary-button" onClick={onOpenSchedule}>
-            Upload new PDF
-          </button>
           <button type="button" className="primary-button" onClick={onOpenPlanner}>
             New scenario <span aria-hidden="true">&rarr;</span>
+          </button>
+          <button type="button" className="secondary-button" onClick={onOpenSchedule}>
+            Upload new PDF
           </button>
         </div>
       </div>
@@ -88,9 +97,9 @@ export const Dashboard = ({
             <div className="recent-plans__list">
               {results.slice(0, 3).map((entry) => (
                 <article key={entry.id} className="recent-plan">
-                  <div>
+                  <div className="recent-plan__heading">
                     <strong>{entry.result.type === 'amount' ? 'By amount' : 'By months'}</strong>
-                    <span>{shortDate(entry.createdAt)}</span>
+                    <span className="recent-plan__date">{shortDate(entry.createdAt)}</span>
                   </div>
                   <div className="recent-plan__stats">
                     <span>{entry.result.type === 'amount' ? formatMoney(entry.inputValue) : entry.inputValue + ' selected'}</span>
@@ -112,6 +121,9 @@ export const Dashboard = ({
         <section className="dashboard-panel active-schedule">
           <div className="dashboard-panel__header"><h2>Active schedule</h2></div>
           <strong className="active-schedule__name">{meta?.sourceFileName || 'No schedule uploaded'}</strong>
+          {meta?.sourceFileName ? (
+            <span className="active-schedule__date">{uploadedDate ? 'Uploaded ' + uploadedDate : 'Upload date unavailable'}</span>
+          ) : null}
           <span className="active-schedule__date">{meta ? meta.parsedPages + ' pages scanned' : 'Upload a PDF to get started'}</span>
           <dl>
             <div><dt>Rows</dt><dd>{summary.totalRows}</dd></div>
@@ -127,8 +139,7 @@ export const Dashboard = ({
         actualPrincipalRemaining={actualPrincipalRemaining}
         originalPrincipal={originalPrincipal}
         paidPercent={paidPercent}
-        totalInstallments={meta?.totalInstallmentsOverride ?? summary.totalInstallments}
-        onOpenSchedule={onOpenSchedule}
+        totalInstallments={summary.totalInstallments}
         onOriginalPrincipalChange={onOriginalPrincipalChange}
         onOriginalPrincipalLockChange={onOriginalPrincipalLockChange}
         onContractedPeriodChange={onContractedPeriodChange}
@@ -144,11 +155,8 @@ export const Dashboard = ({
         interestSaved={interestSaved}
         onOpenPlanner={onOpenPlanner}
       />
-<<<<<<< Updated upstream
-=======
       <ScheduleChangesCard comparison={scheduleComparison} />
       <EstimatedInterestSavedCard comparison={scheduleComparison} />
->>>>>>> Stashed changes
     </div>
   );
 };
