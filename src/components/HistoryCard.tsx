@@ -1,4 +1,3 @@
-import { scenarioReferenceLabel } from '../utils/scenarios';
 import { useMemo, useState } from 'react';
 import { StoredCalculationResult } from '../types';
 import { formatMoney } from '../utils/number';
@@ -147,7 +146,6 @@ export const HistoryCard = ({ results, onOpenScenario, onExportScenarioCsv }: Hi
               <div>
                 <strong>{getScenarioLabel(entry)}</strong>
                 <span>{formatHistoryDate(entry.createdAt)}</span>
-                <span>{scenarioReferenceLabel(entry)}</span>
               </div>
             </div>
             <span className="history-row__mono" role="cell">{getScenarioInput(entry)}</span>
