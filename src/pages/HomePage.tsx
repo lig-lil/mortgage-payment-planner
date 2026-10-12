@@ -13,6 +13,7 @@ import {
   AppWarning,
   CalculationResult,
   ExtractionMeta,
+  LoanDetails,
   PlanningCalculationResult,
   PreviousScheduleSnapshot,
   ScheduleRow,
@@ -34,14 +35,22 @@ import {
   rowsSummary,
   sortRows
 } from '../utils/rows';
-import { compareRealSchedules, createRealScheduleSnapshot, isAcceptablePdfSchedule } from '../utils/scheduleComparison';
+import { migrateLoanDetails } from '../utils/loanDetails';
+import { selectActualMortgage } from '../utils/actualMortgage';
+import { createScheduleReference, scenarioReferenceStatus } from '../utils/scenarios';
+import { acceptSchedule } from '../utils/scheduleState';
+import { initializeBoundaries, createActualScheduleSnapshot, compareActualSchedules } from '../utils/installmentBoundaries';
+import { WarningCard } from '../components/WarningCard';
+import { uploadedDate } from '../utils/overviewFormatting';
 
 const STORAGE_KEYS = {
   previousScheduleSnapshot: 'mortgage.previousScheduleSnapshot',
+  loanDetails: 'mortgage.loanDetails.v1',
   rows: 'mortgage.rows',
   warnings: 'mortgage.warnings',
   meta: 'mortgage.meta',
-  firstUnpaidRowId: 'mortgage.firstUnpaidRowId',
+  firstUnpaidRowId: 'mortgage.firstUnpaidRowId', // Legacy Planner selection remains scenario-only.
+  actualFirstUnpaidRowId: 'mortgage.actualFirstUnpaidRowId.v1',
   legacyFirstUnpaidInstallment: 'mortgage.firstUnpaidInstallmentIndex',
   recentResults: 'mortgage.recentResults',
   amountDraft: 'mortgage.amountDraft',
@@ -50,39 +59,21 @@ const STORAGE_KEYS = {
   planningDraft: 'mortgage.planningDraft'
 } as const;
 
-type AppView = 'home' | 'schedule' | 'planner' | 'history';
+type AppView = 'overview' | 'scenarios' | 'compare' | 'schedule';
 type PlannerMode = 'amount' | 'months' | 'interest';
 
-const APP_VIEWS: Array<{
-  id: AppView;
-  label: string;
-}> = [
-  {
-    id: 'home',
-    label: 'Home'
-  },
-  {
-    id: 'schedule',
-    label: 'Schedule'
-  },
-  {
-    id: 'planner',
-    label: 'Planner'
-  },
-  {
-    id: 'history',
-    label: 'History'
-  }
+const APP_VIEWS: Array<{ id: AppView; label: string }> = [
+  { id: 'overview', label: 'Overview' }, { id: 'scenarios', label: 'Scenarios' },
+  { id: 'compare', label: 'Compare' }, { id: 'schedule', label: 'Schedule' }
 ];
+const ViewIcon = ({ view }: { view: AppView }) => <svg viewBox="0 0 24 24" aria-hidden="true">
+  {view === 'overview' ? <><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></> : null}
+  {view === 'scenarios' ? <><path d="M9 3h6M10 3v6L5 18a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3L14 9V3M7.5 15h9" /></> : null}
+  {view === 'compare' ? <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /> : null}
+  {view === 'schedule' ? <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></> : null}
+</svg>;
 
-const ViewIcon = ({ view }: { view: AppView }) => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    {view === 'home' ? <path d="M3 10.5 12 3l9 7.5V21H15v-7H9v7H3Z" /> : null}
-    {view === 'schedule' ? <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></> : null}
-    {view === 'planner' ? <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></> : null}
-    {view === 'history' ? <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5M12 7v5l4 2" /></> : null}
-  </svg>
-);
+const BrandIcon = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5M12 11v7m-3-3 3 3 3-3" /></svg>;
 
 const buildWarning = (message: string, severity: AppWarning['severity'] = 'warning'): AppWarning => ({
   id: createRowId(),
@@ -126,57 +117,6 @@ const getLegacyFirstUnpaidRowId = (rows: ScheduleRow[]): string | null => {
   }
 
   return principalRows(rows)[legacyInstallment - 1]?.id ?? null;
-};
-
-const getResultFirstUnpaidRowId = (
-  result: CalculationResult,
-  rows: ScheduleRow[]
-): string | null => {
-  const legacyResult = result as CalculationResult & {
-    firstUnpaidRowId?: string;
-    firstUnpaidInstallment?: number;
-  };
-
-  const paymentRows = principalRows(rows);
-
-  if (legacyResult.firstUnpaidRowId) {
-    const rowIndex = paymentRows.findIndex((row) => row.id === legacyResult.firstUnpaidRowId);
-
-    return rowIndex >= 0 ? legacyResult.firstUnpaidRowId : getDefaultFirstUnpaidRowId(rows);
-  }
-
-  const fallbackInstallment = Math.max(1, legacyResult.firstUnpaidInstallment ?? 2);
-
-  return paymentRows[fallbackInstallment - 1]?.id ?? null;
-};
-
-const applyStoredInterestSavings = (
-  result: CalculationResult,
-  storedResult: CalculationResult,
-  rows: ScheduleRow[],
-  lastInterestAmount?: number
-): CalculationResult => {
-  if (storedResult.newInterestAmount == null) {
-    return result;
-  }
-
-  try {
-    return {
-      ...result,
-      ...calculateInterestSavings({
-        rows,
-        result,
-        newInterestAmount: storedResult.newInterestAmount,
-        lastInterestAmount
-      })
-    };
-  } catch {
-    return {
-      ...result,
-      newInterestAmount: storedResult.newInterestAmount,
-      totalInterestSaved: undefined
-    };
-  }
 };
 
 const escapeCsvCell = (value: string | number | null | undefined): string => {
@@ -308,10 +248,13 @@ export const HomePage = () => {
   const [rows, setRows] = useLocalStorage<ScheduleRow[]>(STORAGE_KEYS.rows, []);
   const [warnings, setWarnings] = useLocalStorage<AppWarning[]>(STORAGE_KEYS.warnings, []);
   const [meta, setMeta] = useLocalStorage<ExtractionMeta | null>(STORAGE_KEYS.meta, null);
+  const [loanDetails, setLoanDetails] = useLocalStorage<LoanDetails>(STORAGE_KEYS.loanDetails, migrateLoanDetails(null, meta));
   const [firstUnpaidRowId, setFirstUnpaidRowId] = useLocalStorage<string | null>(
     STORAGE_KEYS.firstUnpaidRowId,
     null
   );
+  const [actualFirstUnpaidRowId, setActualFirstUnpaidRowId] = useLocalStorage<string | null>(STORAGE_KEYS.actualFirstUnpaidRowId, null);
+  const [showSavedScenarios, setShowSavedScenarios] = useState(false);
   const [recentResults, setRecentResults] = useLocalStorage<StoredCalculationResult[]>(
     STORAGE_KEYS.recentResults,
     []
@@ -332,13 +275,13 @@ export const HomePage = () => {
   const [monthsError, setMonthsError] = useState<string | null>(null);
   const [interestError, setInterestError] = useState<string | null>(null);
   const [planningError, setPlanningError] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<AppView>('home');
+  const [activeView, setActiveView] = useState<AppView>('overview');
   const [plannerMode, setPlannerMode] = useState<PlannerMode>('amount');
 
   const sortedRows = useMemo(() => sortRows(rows), [rows]);
-  const scheduleComparison = useMemo(() => compareRealSchedules(
-    previousScheduleSnapshot, createRealScheduleSnapshot(rows, meta, firstUnpaidRowId)
-  ), [previousScheduleSnapshot, rows, meta, firstUnpaidRowId]);
+  const scheduleComparison = useMemo(() => compareActualSchedules(
+    previousScheduleSnapshot, createActualScheduleSnapshot(rows, meta, actualFirstUnpaidRowId)
+  ), [previousScheduleSnapshot, rows, meta, actualFirstUnpaidRowId]);
 
   const firstUnpaidInstallmentForSummary = useMemo(() => {
     if (!firstUnpaidRowId) {
@@ -351,39 +294,10 @@ export const HomePage = () => {
     return index >= 0 ? index + 1 : null;
   }, [firstUnpaidRowId, sortedRows]);
 
-  const recalculatedResults = useMemo(
-    () =>
-      recentResults.map((entry) => {
-        try {
-          const resultFirstUnpaidRowId = getResultFirstUnpaidRowId(entry.result, rows);
-
-          if (!resultFirstUnpaidRowId) {
-            return entry;
-          }
-
-          const result: CalculationResult =
-            entry.result.type === 'amount'
-              ? calculateByAmount({
-                  rows,
-                  firstUnpaidRowId: resultFirstUnpaidRowId,
-                  amount: entry.inputValue
-                })
-              : calculateByMonths({
-                  rows,
-                  firstUnpaidRowId: resultFirstUnpaidRowId,
-                  monthsToCover: entry.inputValue
-                });
-
-          return {
-            ...entry,
-            result: applyStoredInterestSavings(result, entry.result, rows, meta?.lastInterestAmount)
-          };
-        } catch {
-          return entry;
-        }
-      }),
-    [meta?.lastInterestAmount, recentResults, rows]
-  );
+  // Saved scenario outputs never implicitly rebase to a new/edited schedule.
+  const recalculatedResults = recentResults;
+  const scheduleReference = useMemo(() => createScheduleReference(rows, meta), [rows, meta]);
+  const actualMortgage = useMemo(() => selectActualMortgage(rows, meta, actualFirstUnpaidRowId, loanDetails), [rows, meta, actualFirstUnpaidRowId, loanDetails]);
 
   useEffect(() => {
     const paymentRows = sortedRows.filter(isPrincipalRow);
@@ -403,6 +317,11 @@ export const HomePage = () => {
       );
     }
   }, [firstUnpaidRowId, setFirstUnpaidRowId, sortedRows]);
+
+  useEffect(() => {
+    const boundaries = initializeBoundaries(rows, actualFirstUnpaidRowId, firstUnpaidRowId);
+    if (boundaries.actualFirstUnpaidRowId !== actualFirstUnpaidRowId) setActualFirstUnpaidRowId(boundaries.actualFirstUnpaidRowId);
+  }, [rows, actualFirstUnpaidRowId, firstUnpaidRowId, setActualFirstUnpaidRowId]);
 
   useEffect(() => {
     const duplicates = findDuplicateInstallments(principalRows(sortedRows));
@@ -436,29 +355,15 @@ export const HomePage = () => {
     try {
       const { parseSchedulePdf } = await import('../services/pdfScheduleParser');
       const result = await parseSchedulePdf(file);
-      if (!isAcceptablePdfSchedule(result)) {
-        throw new Error('The PDF does not contain a valid repayment schedule. Your active and previous schedules were kept.');
-      }
-      // Rotate only after successful parsing and validation, before replacing active data.
-      setPreviousScheduleSnapshot(createRealScheduleSnapshot(rows, meta, firstUnpaidRowId));
-      setRows(result.rows);
+      const boundaries = initializeBoundaries(result.rows, actualFirstUnpaidRowId, firstUnpaidRowId);
+      const accepted = acceptSchedule({ rows, meta, firstUnpaidRowId: actualFirstUnpaidRowId, previousScheduleSnapshot, loanDetails }, result, boundaries.actualFirstUnpaidRowId);
+      accepted.previousScheduleSnapshot = createActualScheduleSnapshot(rows, meta, actualFirstUnpaidRowId);
+      setPreviousScheduleSnapshot(accepted.previousScheduleSnapshot);
+      setRows(accepted.rows);
       setWarnings(result.warnings);
-      setMeta((currentMeta) => {
-        const nextMeta = { ...result.meta };
-
-        if (currentMeta?.originalPrincipalLocked && currentMeta.originalPrincipal != null) {
-          nextMeta.originalPrincipal = currentMeta.originalPrincipal;
-          nextMeta.originalPrincipalLocked = true;
-        }
-
-        const contractedPeriod = currentMeta?.contractedPeriod ?? currentMeta?.contractedYear;
-        if (contractedPeriod) {
-          nextMeta.contractedPeriod = contractedPeriod;
-        }
-
-        return nextMeta;
-      });
-      setFirstUnpaidRowId(getDefaultFirstUnpaidRowId(result.rows));
+      setMeta(accepted.meta);
+      setActualFirstUnpaidRowId(boundaries.actualFirstUnpaidRowId);
+      setFirstUnpaidRowId(boundaries.scenarioStartingRowId);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'The PDF could not be parsed in the browser.';
@@ -505,6 +410,9 @@ export const HomePage = () => {
         createdAt: new Date().toISOString(),
         inputValue,
         scenarioType: result.type,
+        referenceSchedule: scheduleReference,
+        input: { type: result.type, value: inputValue, firstUnpaidRowId: result.firstUnpaidRowId },
+        assumptions: { engineVersion: 'legacy-v1', lastInterestAmount: meta?.lastInterestAmount },
         result
       })
     );
@@ -567,6 +475,9 @@ export const HomePage = () => {
         throw new Error('Run a principal calculation first.');
       }
 
+      if (scenarioReferenceStatus(latest, scheduleReference) !== 'current') {
+        throw new Error('Run a new principal calculation against the active schedule first.');
+      }
       const savings = calculateInterestSavings({
         rows,
         result: latest.result,
@@ -580,7 +491,7 @@ export const HomePage = () => {
 
       setRecentResults((currentResults) => {
         const updatedResults = currentResults.map((entry, index) =>
-          index === 0 || entry.id === latest.id ? { ...entry, result: updatedResult } : entry
+          index === 0 || entry.id === latest.id ? { ...entry, result: updatedResult, input: entry.input ? { ...entry.input, newInterestAmount: newInterestAmount ?? 0 } : undefined } : entry
         );
 
         return appendRecentResult(updatedResults, {
@@ -588,6 +499,9 @@ export const HomePage = () => {
           createdAt: new Date().toISOString(),
           inputValue: latest.inputValue,
           scenarioType: 'interest',
+          referenceSchedule: latest.referenceSchedule,
+          input: { type: 'interest', value: newInterestAmount ?? 0, firstUnpaidRowId: latest.result.firstUnpaidRowId, newInterestAmount: newInterestAmount ?? 0 },
+          assumptions: latest.assumptions,
           result: updatedResult
         });
       });
@@ -606,6 +520,7 @@ export const HomePage = () => {
         throw new Error('Run a principal calculation first.');
       }
 
+      if (scenarioReferenceStatus(latest, scheduleReference) !== 'current') throw new Error('Run a new principal calculation against the active schedule first.');
       setPlanningResult(
         calculateMonthlyReimbursementPlanning({
           rows,
@@ -641,6 +556,8 @@ export const HomePage = () => {
     const rows: Array<[string, string | number | null | undefined]> = [
       ['scenario_type', scenarioType],
       ['created_at', scenario.createdAt],
+      ['reference_schedule', scenario.referenceSchedule?.sourceFileName ?? 'Legacy reference unknown'],
+      ['reference_extracted_at', scenario.referenceSchedule?.extractedAt],
       ['input_value', scenario.inputValue],
       ['first_unpaid_installment', scenario.result.firstUnpaidInstallment],
       ['covered_installments', scenario.result.monthsCovered],
@@ -685,7 +602,8 @@ export const HomePage = () => {
 
       return [scenario, ...currentResults.filter((entry) => entry.id !== scenarioId)];
     });
-    setActiveView('planner');
+    setShowSavedScenarios(false);
+    setActiveView('scenarios');
   };
 
   const handleClearData = () => {
@@ -696,7 +614,9 @@ export const HomePage = () => {
     setPreviousScheduleSnapshot(null);
     setWarnings([]);
     setMeta(null);
+    setLoanDetails(migrateLoanDetails(null, null));
     setFirstUnpaidRowId(null);
+    setActualFirstUnpaidRowId(null);
     setRecentResults([]);
     setAmountDraft('');
     setMonthsDraft('');
@@ -709,50 +629,30 @@ export const HomePage = () => {
   return (
     <main className="app-shell">
       <aside className="app-sidebar">
-        <div className="app-brand"><span className="app-brand__mark">mp</span><strong>Mortgage Planner</strong></div>
-        <span className="app-sidebar__label">Menu</span>
+        <div className="app-brand"><span className="app-brand__mark"><BrandIcon /></span><strong>Mortgage Planner</strong></div>
+        <span className="app-sidebar__label">Tracker &amp; prepayment planner</span>
         <nav className="view-tabs" aria-label="Main app views">
           {APP_VIEWS.map((view) => (
-            <button key={view.id} type="button" className={`view-tabs__button${activeView === view.id ? ' view-tabs__button--active' : ''}`} aria-current={activeView === view.id ? 'page' : undefined} onClick={() => setActiveView(view.id)}>
+            <button key={view.id} type="button" className={`view-tabs__button${activeView === view.id ? ' view-tabs__button--active' : ''}`} aria-current={activeView === view.id ? 'page' : undefined} onClick={() => { setActiveView(view.id); if (view.id === 'scenarios') setShowSavedScenarios(false); }}>
               <ViewIcon view={view.id} /><strong>{view.label}</strong>
             </button>
           ))}
         </nav>
-        <div className="app-sidebar__privacy"><span>Data</span><p>Stored locally in your browser.<br />Nothing is uploaded.</p></div>
+        <div className="app-sidebar__privacy"><span>Bank schedule</span><p>{meta ? `Updated ${uploadedDate(meta.extractedAt)}` : 'No schedule uploaded'}<br />{previousScheduleSnapshot ? `Previous ${uploadedDate(previousScheduleSnapshot.extractedAt)}` : 'No previous schedule'}</p><button className="secondary-button" onClick={() => setActiveView('schedule')}>Update schedule</button><p>Stored locally · offline capable.<br />Nothing is uploaded.</p></div>
       </aside>
       <div className="app-content">
-        <div className="mobile-brand"><span className="app-brand__mark">mp</span><strong>Mortgage Planner</strong></div>
+        <header className="mobile-brand"><span className="app-brand__mark"><BrandIcon /></span><strong>Mortgage Planner</strong><button className="secondary-button" onClick={() => setActiveView('schedule')}>Update</button></header>
         <div className="view-panel">
-        {activeView === 'home' ? (
+        {activeView === 'overview' ? (
           <Dashboard
+            actualMortgage={actualMortgage}
+            loanDetails={loanDetails}
             scheduleComparison={scheduleComparison}
-            rows={sortedRows}
-            firstUnpaidInstallment={firstUnpaidInstallmentForSummary}
             meta={meta}
             results={recalculatedResults}
-            onOpenPlanner={() => setActiveView('planner')}
+            onOpenPlanner={() => { setShowSavedScenarios(false); setActiveView('scenarios'); }}
             onOpenSchedule={() => setActiveView('schedule')}
-            onOpenHistory={() => setActiveView('history')}
-            onOriginalPrincipalChange={(value) =>
-              setMeta((currentMeta) =>
-                currentMeta ? { ...currentMeta, originalPrincipal: value } : currentMeta
-              )
-            }
-            onOriginalPrincipalLockChange={(locked) =>
-              setMeta((currentMeta) =>
-                currentMeta ? { ...currentMeta, originalPrincipalLocked: locked } : currentMeta
-              )
-            }
-            onContractedPeriodChange={(value) =>
-              setMeta((currentMeta) => {
-                if (!currentMeta) {
-                  return currentMeta;
-                }
-
-                const { contractedYear: _legacyContractedYear, ...rest } = currentMeta;
-                return { ...rest, contractedPeriod: value };
-              })
-            }
+            onSaveLoanDetails={setLoanDetails}
           />
         ) : null}
 
@@ -771,11 +671,14 @@ export const HomePage = () => {
               <SummaryCard
                 title={uiText.summaryTitle}
                 rows={sortedRows}
-                firstUnpaidInstallment={firstUnpaidInstallmentForSummary}
+                firstUnpaidInstallment={actualMortgage.firstUnpaidInstallment ? principalRows(rows).findIndex(row => row.id === actualFirstUnpaidRowId) + 1 : null}
                 meta={meta}
               />
             </div>
 
+            <FirstUnpaidSelector rows={sortedRows} value={actualFirstUnpaidRowId} onChange={setActualFirstUnpaidRowId} actual />
+            <WarningCard title="Schedule warnings" warnings={warnings} />
+            <button className="secondary-button" onClick={handleExportScheduleCsv}>Export schedule CSV</button>
             <ScheduleEditor
               title={uiText.tableTitle}
               rows={sortedRows}
@@ -787,11 +690,11 @@ export const HomePage = () => {
           </>
         ) : null}
 
-        {activeView === 'planner' ? (
+        {activeView === 'scenarios' && !showSavedScenarios ? (
           <>
             <header className="planner-page-header">
-              <div><span className="page-kicker">Planner</span><h1>Test a scenario</h1><p>Compare prepayment scenarios and see their impact.</p></div>
-              <button type="button" className="secondary-button" disabled={!recalculatedResults.length} onClick={() => setActiveView('history')}>Save scenario</button>
+              <div><span className="page-kicker">Scenarios</span><h1>Test a scenario</h1><p>Compare prepayment scenarios and see their impact.</p></div>
+              <button type="button" className="secondary-button" onClick={() => setShowSavedScenarios(true)}>Saved Scenarios</button>
             </header>
             <FirstUnpaidSelector
               rows={sortedRows}
@@ -806,9 +709,9 @@ export const HomePage = () => {
                   <button type="button" className={plannerMode === 'interest' ? 'is-active' : ''} onClick={() => setPlannerMode('interest')}>Interest saved</button>
                 </nav>
                 <div className="planner-method-content">
-                  {plannerMode === 'amount' ? <CalculationCard title={uiText.amountTitle} inputLabel="Available amount" inputPlaceholder="15,000.00" inputPrefix="RON" value={amountDraft} helperText={`We'll add principal values starting from installment #${firstUnpaidInstallmentForSummary ?? '-'} without exceeding this amount.`} buttonLabel="Calculate →" error={amountError} onValueChange={setAmountDraft} onSubmit={handleCalculateByAmount} /> : null}
-                  {plannerMode === 'months' ? <CalculationCard title={uiText.monthsTitle} inputLabel="Number of months" inputPlaceholder="e.g. 10" value={monthsDraft} helperText="We'll add the next N installments starting from the first unpaid installment." buttonLabel="Calculate →" error={monthsError} onValueChange={setMonthsDraft} onSubmit={handleCalculateByMonths} /> : null}
-                  {plannerMode === 'interest' ? <CalculationCard title={uiText.interestTitle} inputLabel="New interest amount" inputPlaceholder="e.g. 12000" inputPrefix="RON" value={interestDraft} helperText="Compares the new repayment schedule interest with the original interest read from the PDF." buttonLabel="Calculate →" error={interestError} onValueChange={setInterestDraft} onSubmit={handleCalculateInterestSavings} /> : null}
+                  {plannerMode === 'amount' ? <CalculationCard title={uiText.amountTitle} inputLabel="Available amount" inputPlaceholder="15,000.00" inputPrefix="RON" value={amountDraft} helperText={`We'll add principal values starting from installment #${firstUnpaidInstallmentForSummary ?? '-'} without exceeding this amount.`} buttonLabel="Calculate ›" error={amountError} onValueChange={setAmountDraft} onSubmit={handleCalculateByAmount} /> : null}
+                  {plannerMode === 'months' ? <CalculationCard title={uiText.monthsTitle} inputLabel="Number of months" inputPlaceholder="e.g. 10" value={monthsDraft} helperText="We'll add the next N installments starting from the selected scenario installment." buttonLabel="Calculate ›" error={monthsError} onValueChange={setMonthsDraft} onSubmit={handleCalculateByMonths} /> : null}
+                  {plannerMode === 'interest' ? <CalculationCard title={uiText.interestTitle} inputLabel="New interest amount" inputPlaceholder="e.g. 12000" inputPrefix="RON" value={interestDraft} helperText="Compares the new repayment schedule interest with the original interest read from the PDF." buttonLabel="Calculate ›" error={interestError} onValueChange={setInterestDraft} onSubmit={handleCalculateInterestSavings} /> : null}
                 </div>
               </section>
               <ResultsCard
@@ -823,15 +726,16 @@ export const HomePage = () => {
           </>
         ) : null}
 
-        {activeView === 'history' ? (
+        {activeView === 'scenarios' && showSavedScenarios ? (
           <>
             <header className="history-page-header">
               <div>
-                <span className="page-kicker">History</span>
+                <span className="page-kicker">Scenarios</span>
                 <h1>Saved scenarios</h1>
                 <p>Compare past calculations and export the data you need.</p>
               </div>
               <div className="history-page-header__actions">
+                <button className="secondary-button" onClick={() => setShowSavedScenarios(false)}>Back to calculator</button>
                 <button type="button" className="secondary-button" onClick={handleExportScheduleCsv}>
                   Export schedule CSV
                 </button>
@@ -856,6 +760,7 @@ export const HomePage = () => {
             </section>
           </>
         ) : null}
+        {activeView === 'compare' ? <section className="compare-placeholder overview-card"><h1>Compare</h1><p>Scenario comparison will be available in Phase 3.</p><button className="secondary-button" onClick={() => { setShowSavedScenarios(true); setActiveView('scenarios'); }}>View Saved Scenarios</button></section> : null}
         </div>
       </div>
     </main>

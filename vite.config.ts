@@ -13,12 +13,12 @@ export default defineConfig({
         short_name: 'Mortgage PWA',
         description:
           'Offline-friendly mortgage repayment planner that extracts principal values from a PDF and helps simulate payments on mobile.',
-        theme_color: '#164e63',
-        background_color: '#f4efe6',
+        theme_color: '#111318',
+        background_color: '#111318',
         display: 'standalone',
         start_url: '/',
         scope: '/',
-        lang: 'ro-RO',
+        lang: 'en',
         icons: [
           {
             src: '/icon.svg',

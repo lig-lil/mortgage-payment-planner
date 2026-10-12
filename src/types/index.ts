@@ -47,12 +47,15 @@ export interface PdfParseResult {
 
 /** Real active PDF at replacement time. Never contains scenario or Planner inputs. */
 export interface PreviousScheduleSnapshot {
+  boundaryVersion?: 'actual-v2';
   sourceFileName: string;
   extractedAt: string;
   firstUnpaidRowId: string | null;
   principalRemaining: number;
-  remainingInterest: number | null;
+  installmentsRemaining?: number;
+  installments?: ScheduleRow[];
   finalPaymentDate: string | null;
+  remainingInterest?: number | null;
 }
 
 export interface ScheduleComparison {
@@ -60,7 +63,9 @@ export interface ScheduleComparison {
   current: PreviousScheduleSnapshot;
   /** Signed current minus previous; a negative value is an observed reduction. */
   principalDelta: number;
-  interestDelta: number | null;
+  remainingInterestDelta: number | null;
+  installmentsDelta: number | null;
+  estimatedInterestSaved: { amount: number; startDate: string | null; installmentNumber: number } | null;
   termDifferenceMonths: number | null;
 }
 
@@ -113,6 +118,46 @@ export interface StoredCalculationResult {
   inputValue: number;
   scenarioType?: 'amount' | 'months' | 'interest';
   result: CalculationResult;
+  referenceSchedule?: ScheduleReference;
+  input?: ScenarioInput;
+  assumptions?: { engineVersion: 'legacy-v1'; lastInterestAmount?: number };
+}
+
+export interface LoanDetails {
+  originalLoanAmount: number | null;
+  originalLoanAmountConfirmed: boolean;
+  startMonth?: string;
+  legacy?: Pick<ExtractionMeta, 'originalPrincipal' | 'originalPrincipalLocked' | 'contractedPeriod' | 'contractedYear'>;
+}
+
+export interface ScheduleReference {
+  sourceFileName: string | null;
+  extractedAt: string | null;
+  /** Exact canonical calculation inputs; detects uploads and manual corrections. */
+  version: string;
+}
+
+export interface ScenarioInput {
+  type: 'amount' | 'months' | 'interest';
+  value: number;
+  firstUnpaidRowId: string;
+  newInterestAmount?: number;
+}
+
+export interface ActualMortgageState {
+  outstandingPrincipal: number | null;
+  firstUnpaidInstallment: ScheduleRow | null;
+  nextInstallmentDate: string | null;
+  nextInstallmentAmount: number | null;
+  nextPrincipal: number | null;
+  nextInterest: number | null;
+  installmentsRemaining: number | null;
+  lastScheduledPaymentDate: string | null;
+  remainingInterest: number | null;
+  totalRemainingScheduledPayments: number | null;
+  principalRepaid: { amount: number | null; percentage: number | null; reason: string | null };
+  sourceFileName: string | null;
+  extractedAt: string | null;
 }
 
 export interface AppStateSnapshot {

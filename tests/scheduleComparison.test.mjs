@@ -12,7 +12,7 @@ execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', 'src/utils/sc
 after(() => rmSync(output, { recursive: true, force: true }));
 const require = createRequire(import.meta.url);
 const { createRealScheduleSnapshot: snapshot, compareRealSchedules: compare,
-  totalRemainingInterest: interest, finalScheduledPaymentDate: finalDate,
+  estimateInterestSaved: estimate, finalScheduledPaymentDate: finalDate,
   isAcceptablePdfSchedule: valid } = require(join(output, 'utils/scheduleComparison.js'));
 const meta = { sourceFileName: 'A.pdf', extractedAt: '2026-09-22T12:00:00Z', parsedPages: 1,
   creditColumn: { confidence: 1 }, installmentColumn: { confidence: 1 } };
@@ -26,7 +26,8 @@ test('first upload has no comparison; snapshot round-trips through localStorage 
   assert.equal(compare(null, a), null);
   assert.deepEqual(JSON.parse(JSON.stringify(a)), a);
   assert.equal(a.principalRemaining, 300); // Same full-row sum as Current Mortgage.
-  assert.equal(a.remainingInterest, 10); // Only the selected unpaid portion.
+  assert.equal(a.installmentsRemaining, 2);
+  assert.equal(a.installments[1].interestAmount, 10);
   rows[0].creditAmount = 101;
   assert.equal(a.principalRemaining, 300); // Frozen derived snapshot.
   rows[0].creditAmount = 100;
@@ -37,7 +38,8 @@ test('A to B to C reports signed observed changes and calendar months', () => {
   const b = snapshot([{ ...rows[0], creditAmount: 90, interestAmount: 8 }], { ...meta, sourceFileName: 'B.pdf' }, 'a');
   const ab = compare(a, b);
   assert.equal(ab.principalDelta, -210);
-  assert.equal(ab.interestDelta, -14);
+  assert.equal(ab.installmentsDelta, -1);
+  assert.equal(ab.estimatedInterestSaved.amount, 14);
   assert.equal(ab.termDifferenceMonths, -1);
   const c = snapshot([{ ...rows[1], paymentDate: '2036-01-15' }], { ...meta, sourceFileName: 'C.pdf' }, 'b');
   assert.equal(compare(b, c).previous.sourceFileName, 'B.pdf');
@@ -45,13 +47,49 @@ test('A to B to C reports signed observed changes and calendar months', () => {
   assert.equal(compare(a, a).principalDelta, 0);
 });
 
-test('interest requires complete explicit finite data; zero is valid', () => {
-  assert.equal(interest([{ ...rows[0], interestAmount: undefined }, rows[1]], 'a'), null);
-  assert.equal(interest([{ ...rows[0], interestAmount: undefined }, rows[1]], 'b'), 10);
-  for (const amount of [NaN, Infinity, -1]) assert.equal(interest([{ ...rows[0], interestAmount: amount }], 'a'), null);
-  assert.equal(interest([{ ...rows[0], interestAmount: 0 }], 'a'), 0);
-  assert.equal(interest(rows, 'missing'), null);
-  assert.equal(compare(snapshot(rows, meta, 'a'), snapshot([{ ...rows[0], interestAmount: undefined }], meta, 'a')).interestDelta, null);
+const schedule = (values, start = values[0]?.id) => snapshot(values, meta, start);
+const timeline = [10, 9, 8, 7, 6, 5].map((interestAmount, index) => ({
+  id: 'month-' + index, installmentNumber: index + 10, creditAmount: 100, interestAmount,
+  paymentDate: ['2026-10-15', '2026-11-15', '2026-12-15', '2027-01-15', '2027-02-15', '2027-03-15'][index]
+}));
+
+test('A: no previous PDF makes estimate unavailable', () => {
+  assert.equal(estimate(null, schedule(timeline)), null);
+});
+test('B: normal payment excludes the paid month even when its interest is missing', () => {
+  const before = timeline.map((r, i) => i === 0 ? { ...r, interestAmount: undefined } : r);
+  assert.equal(estimate(schedule(before), schedule(timeline.slice(1))).amount, 0);
+});
+test('C: payment plus early repayment aligns by date even with renumbered rows', () => {
+  const current = timeline.slice(1, 4).map((r, i) => ({ ...r, installmentNumber: i + 1, interestAmount: r.interestAmount - 1 }));
+  assert.equal(estimate(schedule(timeline), schedule(current)).amount, 14);
+});
+test('D: several elapsed months and a selected unpaid start exclude all earlier interest', () => {
+  const result = estimate(schedule(timeline), schedule(timeline.slice(2), 'month-3'));
+  assert.equal(result.amount, 0);
+  assert.equal(result.startDate, '2027-01-15');
+});
+test('missing interest, negative savings, unmatched dates and legacy snapshots are unavailable', () => {
+  for (const interestAmount of [undefined, NaN, Infinity, -1]) {
+    assert.equal(estimate(schedule(timeline), schedule([{ ...timeline[3], interestAmount }])), null);
+  }
+  assert.equal(estimate(schedule(timeline), schedule([{ ...timeline[3], interestAmount: 100 }])), null);
+  assert.equal(estimate(schedule(timeline), schedule([{ ...timeline[3], paymentDate: '2028-01-15' }])), null);
+  assert.equal(estimate({ ...schedule(timeline), installments: undefined }, schedule(timeline)), null);
+  assert.equal(estimate(schedule(timeline), schedule(timeline, 'missing')), null);
+});
+test('number fallback requires dated corroboration and rejects inconsistent numbering', () => {
+  const current = timeline.slice(3).map((r, i) => i === 0 ? { ...r, paymentDate: undefined } : r);
+  assert.equal(estimate(schedule(timeline), schedule(current)).amount, 0);
+  assert.equal(estimate(schedule(timeline), schedule(current.map(r => ({ ...r, paymentDate: undefined })))), null);
+  assert.equal(estimate(schedule(timeline), schedule(current.map((r, i) => i === 1 ? { ...r, installmentNumber: 50 } : r))), null);
+});
+test('duplicate dates/numbers rejected; zero interest valid; fees excluded; cents preserved', () => {
+  assert.equal(estimate(schedule(timeline), schedule([timeline[3], timeline[3]])), null);
+  assert.equal(estimate(schedule(timeline), schedule([timeline[3], { ...timeline[4], paymentDate: timeline[3].paymentDate }])), null);
+  const current = [{ ...timeline[3], interestAmount: 0 }, { id: 'fee', installmentNumber: 99, creditAmount: 0 }];
+  assert.equal(estimate(schedule(timeline), schedule(current)).amount, 18);
+  assert.equal(estimate(schedule([{ ...timeline[3], interestAmount: 10.23 }]), schedule([{ ...timeline[3], interestAmount: 8.12 }])).amount, 2.11);
 });
 
 test('final date ignores fees and invalid dates and supports legacy raw dates', () => {

@@ -1,56 +1,13 @@
 import { ScheduleComparison } from '../types';
-import { formatMoney } from '../utils/number';
-import { formatScheduleDate } from '../utils/scheduleDate';
-
-const moneyChange = (delta: number) => delta === 0 ? 'No change' :
-  `${delta < 0 ? '↓' : '↑'} ${formatMoney(Math.abs(delta))}`;
-
-const termChange = (comparison: ScheduleComparison): string => {
-  const months = comparison.termDifferenceMonths;
-  if (months == null) return 'Not available for both schedules';
-  if (months === 0) {
-    if (comparison.previous.finalPaymentDate === comparison.current.finalPaymentDate) return 'No change';
-    return `Less than 1 month ${comparison.current.finalPaymentDate! < comparison.previous.finalPaymentDate! ? 'earlier' : 'later'}`;
-  }
-  return `${Math.abs(months)} ${Math.abs(months) === 1 ? 'month' : 'months'} ${months < 0 ? 'earlier' : 'later'}`;
-};
-
-export const ScheduleChangesCard = ({ comparison }: { comparison: ScheduleComparison | null }) => (
-  <section className="dashboard-panel schedule-changes" aria-labelledby="schedule-changes-title">
-    <header className="latest-scenario-card__header">
-      <h2 id="schedule-changes-title">CHANGES SINCE PREVIOUS SCHEDULE</h2>
-      <p>What changed after your latest updated schedule.</p>
-    </header>
-    {!comparison ? (
-      <div className="schedule-changes__empty">
-        <strong>No previous schedule to compare yet.</strong>
-        <p>Upload an updated mortgage schedule later to see how your mortgage has changed.</p>
-      </div>
-    ) : (
-      <>
-        <p className="schedule-changes__sources" title={`${comparison.previous.sourceFileName} → ${comparison.current.sourceFileName}`}>
-          Previous real PDF schedule → Current real PDF schedule
-        </p>
-        <dl className="schedule-changes__metrics">
-          <div>
-            <dt>Principal remaining</dt>
-            <dd>{formatMoney(comparison.previous.principalRemaining)} → {formatMoney(comparison.current.principalRemaining)}</dd>
-            <dd className={`schedule-changes__delta${comparison.principalDelta < 0 ? ' latest-scenario-card__comparison--positive' : ''}`}>{moneyChange(comparison.principalDelta)}</dd>
-          </div>
-          <div>
-            <dt>Remaining interest</dt>
-            <dd>{comparison.interestDelta == null ? '—' : `${formatMoney(comparison.previous.remainingInterest!)} → ${formatMoney(comparison.current.remainingInterest!)}`}</dd>
-            <dd className={`schedule-changes__delta${comparison.interestDelta != null && comparison.interestDelta < 0 ? ' latest-scenario-card__comparison--positive' : ''}`}>
-              {comparison.interestDelta == null ? 'Not available for both schedules' : moneyChange(comparison.interestDelta)}
-            </dd>
-          </div>
-          <div>
-            <dt>Mortgage term</dt>
-            <dd>{comparison.termDifferenceMonths == null ? '—' : `${formatScheduleDate(comparison.previous.finalPaymentDate!)} → ${formatScheduleDate(comparison.current.finalPaymentDate!)}`}</dd>
-            <dd className={`schedule-changes__delta${comparison.termDifferenceMonths != null && comparison.termDifferenceMonths < 0 ? ' latest-scenario-card__comparison--positive' : ''}`}>{termChange(comparison)}</dd>
-          </div>
-        </dl>
-      </>
-    )}
-  </section>
-);
+import { ron, scheduledDate } from '../utils/overviewFormatting';
+const delta = (value: number | null | undefined, unit = '') => value == null || !Number.isFinite(value) ? 'Unavailable' : value === 0 ? 'No change' : `${value < 0 ? '-' : '+'}${Math.abs(value)}${unit}`;
+const moneyDelta = (value: number | null | undefined) => value == null ? 'Unavailable' : value === 0 ? 'No change' : `${value < 0 ? '-' : '+'}${ron(Math.abs(value))}`;
+export const ScheduleChangesCard = ({ comparison }: { comparison: ScheduleComparison | null }) => <section className="overview-card observed-changes" aria-labelledby="schedule-changes-title">
+  <header className="overview-card-heading"><h2 id="schedule-changes-title">Changes since previous schedule</h2>{comparison ? <span className="data-chip">Observed</span> : null}</header>
+  {comparison ? <><p className="reference-note">{comparison.previous.sourceFileName} → {comparison.current.sourceFileName}</p><dl className="compact-metrics">
+    <div><dt>Outstanding principal<small>{ron(comparison.previous.principalRemaining)} → {ron(comparison.current.principalRemaining)}</small></dt><dd>{moneyDelta(comparison.principalDelta)}</dd></div>
+    <div><dt>Installments remaining<small>{comparison.installmentsDelta != null ? `${comparison.previous.installmentsRemaining} → ${comparison.current.installmentsRemaining}` : 'Payment status unavailable for both schedules'}</small></dt><dd>{delta(comparison.installmentsDelta)}</dd></div>
+    <div><dt>Scheduled end date<small>{scheduledDate(comparison.previous.finalPaymentDate)} → {scheduledDate(comparison.current.finalPaymentDate)}</small></dt><dd>{comparison.termDifferenceMonths == null ? 'Unavailable' : comparison.termDifferenceMonths === 0 ? comparison.previous.finalPaymentDate === comparison.current.finalPaymentDate ? 'No change' : 'Within one month' : `${Math.abs(comparison.termDifferenceMonths)} months ${comparison.termDifferenceMonths < 0 ? 'earlier' : 'later'}`}</dd></div>
+    <div><dt>Remaining interest difference</dt><dd>{moneyDelta(comparison.remainingInterestDelta)}</dd></div>
+  </dl>{comparison.estimatedInterestSaved ? <details className="observed-estimate"><summary>Aligned interest reduction estimate ≈ {ron(comparison.estimatedInterestSaved.amount)}</summary><p>Future interest compared from matching installments. This estimate does not prove savings caused by early repayment.</p></details> : null}<p className="reference-note observed-footnote">Real bank schedules compared. Payments, rate changes and other events can affect these differences.</p></> : <div className="overview-empty"><strong>No previous schedule yet</strong><p>Changes will appear after you upload another valid bank schedule.</p></div>}
+</section>;

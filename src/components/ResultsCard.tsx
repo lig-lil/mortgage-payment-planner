@@ -1,3 +1,4 @@
+import { formatReferenceTimestamp, scenarioReferenceLabel } from '../utils/scenarios';
 import { FormEvent } from 'react';
 import { PlanningCalculationResult, StoredCalculationResult } from '../types';
 import { formatMoney } from '../utils/number';
@@ -40,6 +41,7 @@ export const ResultsCard = ({
         <p className="empty-state">Run one of the calculations to see the latest locally saved result.</p>
       ) : (
         <div className="results-stack">
+          <p>{scenarioReferenceLabel(latest, formatReferenceTimestamp)}</p>
           <div className="outcome-highlights">
             <div>
               <span>{latest.result.type === 'amount' ? 'Principal covered' : 'Required amount'}</span>
