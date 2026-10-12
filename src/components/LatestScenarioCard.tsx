@@ -27,6 +27,7 @@ export const LatestScenarioCard = ({
     <section className="balance-card latest-scenario-card" aria-label="Latest scenario">
       <header className="latest-scenario-card__header">
         <h2>LATEST SCENARIO</h2>
+        <p>Based on current mortgage</p>
         {latest ? (
           <p>{latest.result.type === 'amount' ? 'By amount' : 'By months'}{timestamp ? ` · ${timestamp}` : ''}</p>
         ) : null}

@@ -1,3 +1,4 @@
+import { EstimatedInterestSavedCard } from './EstimatedInterestSavedCard';
 import { CurrentMortgageCard } from './CurrentMortgageCard';
 import { LatestScenarioCard } from './LatestScenarioCard';
 import { ExtractionMeta, ScheduleRow, StoredCalculationResult } from '../types';
@@ -143,6 +144,11 @@ export const Dashboard = ({
         interestSaved={interestSaved}
         onOpenPlanner={onOpenPlanner}
       />
+<<<<<<< Updated upstream
+=======
+      <ScheduleChangesCard comparison={scheduleComparison} />
+      <EstimatedInterestSavedCard comparison={scheduleComparison} />
+>>>>>>> Stashed changes
     </div>
   );
 };

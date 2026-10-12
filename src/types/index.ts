@@ -45,6 +45,30 @@ export interface PdfParseResult {
   meta: ExtractionMeta;
 }
 
+<<<<<<< Updated upstream
+=======
+/** Real active PDF at replacement time. Never contains scenario or Planner inputs. */
+export interface PreviousScheduleSnapshot {
+  sourceFileName: string;
+  extractedAt: string;
+  firstUnpaidRowId: string | null;
+  principalRemaining: number;
+  installmentsRemaining?: number;
+  installments?: ScheduleRow[];
+  finalPaymentDate: string | null;
+}
+
+export interface ScheduleComparison {
+  previous: PreviousScheduleSnapshot;
+  current: PreviousScheduleSnapshot;
+  /** Signed current minus previous; a negative value is an observed reduction. */
+  principalDelta: number;
+  installmentsDelta: number | null;
+  estimatedInterestSaved: { amount: number; startDate: string | null; installmentNumber: number } | null;
+  termDifferenceMonths: number | null;
+}
+
+>>>>>>> Stashed changes
 export interface AmountCalculationResult {
   type: 'amount';
   firstUnpaidRowId: string;
